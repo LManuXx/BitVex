@@ -1,0 +1,196 @@
+/dts-v1/;
+
+/ {
+    model = "Test Embedded Board";
+    compatible = "test,embedded-board";
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    chosen {
+        bootargs = "console=ttyAMA0,115200 root=/dev/mmcblk0p2";
+    };
+
+    memory@80000000 {
+        reg = <0x80000000 0x40000000>;
+    };
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "arm,cortex-a53";
+            reg = <0x0>;
+        };
+
+        cpu@1 {
+            device_type = "cpu";
+            compatible = "arm,cortex-a53";
+            reg = <0x1>;
+        };
+    };
+
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "simple-bus";
+        ranges;
+
+        uart@10000000 {
+            compatible = "arm,pl011", "arm,primecell";
+            reg = <0x10000000 0x1000>;
+            interrupts = <0 1 4>;
+            clocks = <&clk_uart>;
+            clock-names = "apb_pclk";
+            status = "okay";
+        };
+
+        i2c@20000000 {
+            compatible = "arm,pl024";
+            reg = <0x20000000 0x1000>;
+            interrupts = <0 2 4>;
+            clocks = <&clk_i2c>;
+            clock-names = "apb_pclk";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "okay";
+
+            sensor@48 {
+                compatible = "ti,tmp102";
+                reg = <0x48>;
+            };
+        };
+
+        spi@30000000 {
+            compatible = "arm,pl022";
+            reg = <0x30000000 0x1000>;
+            interrupts = <0 3 4>;
+            clocks = <&clk_spi>;
+            clock-names = "apb_pclk";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "okay";
+
+            flash@0 {
+                compatible = "jedec,spi-nor";
+                reg = <0>;
+                spi-max-frequency = <10000000>;
+            };
+        };
+
+        wifi@40000000 {
+            compatible = "brcm,bcm4329-wifi";
+            reg = <0x40000000 0x1000>;
+            interrupts = <0 4 4>;
+            clocks = <&clk_wifi>;
+            clock-names = "ref";
+            status = "disabled";
+        };
+
+        bluetooth@50000000 {
+            compatible = "brcm,bcm4329-bt";
+            reg = <0x50000000 0x1000>;
+            interrupts = <0 5 4>;
+            clocks = <&clk_bt>;
+            clock-names = "ref";
+            status = "disabled";
+        };
+
+        gpu@60000000 {
+            compatible = "arm,mali-400";
+            reg = <0x60000000 0x10000>;
+            interrupts = <0 6 4>, <0 7 4>;
+            clocks = <&clk_gpu>;
+            clock-names = "bus";
+            status = "okay";
+        };
+
+        usb@70000000 {
+            compatible = "generic-ehci";
+            reg = <0x70000000 0x1000>;
+            interrupts = <0 8 4>;
+            clocks = <&clk_usb>;
+            clock-names = "apb_pclk";
+            status = "okay";
+        };
+
+        ethernet@80000000 {
+            compatible = "smsc,lan91c111";
+            reg = <0x80000000 0x10000>;
+            interrupts = <0 9 4>;
+            clocks = <&clk_eth>;
+            clock-names = "pclk";
+            status = "okay";
+        };
+
+        watchdog@90000000 {
+            compatible = "arm,sp805";
+            reg = <0x90000000 0x1000>;
+            interrupts = <0 10 4>;
+            clocks = <&clk_wdt>, <&clk_wdt_ref>;
+            clock-names = "apb_pclk", "wdog_clk";
+            status = "okay";
+        };
+    };
+
+    clk_uart: clk-uart {
+        compatible = "fixed-clock";
+        clock-frequency = <24000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_i2c: clk-i2c {
+        compatible = "fixed-clock";
+        clock-frequency = <100000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_spi: clk-spi {
+        compatible = "fixed-clock";
+        clock-frequency = <100000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_wifi: clk-wifi {
+        compatible = "fixed-clock";
+        clock-frequency = <32768>;
+        #clock-cells = <0>;
+    };
+
+    clk_bt: clk-bt {
+        compatible = "fixed-clock";
+        clock-frequency = <32768>;
+        #clock-cells = <0>;
+    };
+
+    clk_gpu: clk-gpu {
+        compatible = "fixed-clock";
+        clock-frequency = <400000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_usb: clk-usb {
+        compatible = "fixed-clock";
+        clock-frequency = <48000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_eth: clk-eth {
+        compatible = "fixed-clock";
+        clock-frequency = <25000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_wdt: clk-wdt {
+        compatible = "fixed-clock";
+        clock-frequency = <100000000>;
+        #clock-cells = <0>;
+    };
+
+    clk_wdt_ref: clk-wdt-ref {
+        compatible = "fixed-clock";
+        clock-frequency = <32768>;
+        #clock-cells = <0>;
+    };
+};

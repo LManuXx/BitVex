@@ -1,0 +1,43 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Build artifacts
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+
+# VEX output reports (user-generated)
+*.vex.json
+!tests/fixtures/*.json
+
+# Environment
+.env
+.env.local
+
+# Coverage
+*.profraw
+*.profdata
+lcov.info
+lcov/
+
+# Release
+/dist/

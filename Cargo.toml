@@ -1,0 +1,39 @@
+[package]
+name = "bitvex"
+version = "0.1.0"
+edition = "2024"
+authors = ["Manuel Neto Romero"]
+description = "Automate CRA compliance: generate OpenVEX reports from Yocto SBOMs by filtering CVEs with kernel config and device tree analysis"
+license = "SSPL-1.0"
+repository = "https://github.com/LManuXx/BitVex"
+homepage = "https://github.com/LManuXx/BitVex"
+documentation = "https://docs.rs/bitvex"
+readme = "README.md"
+keywords = ["vex", "cra", "sbom", "spdx", "embedded-linux"]
+categories = ["command-line-utilities", "embedded", "os"]
+rust-version = "1.85"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tabled = "0.18"
+indicatif = "0.17"
+anyhow = "1"
+thiserror = "2"
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

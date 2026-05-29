@@ -1,0 +1,74 @@
+{
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "spdxVersion": "SPDX-2.3",
+    "creationInfo": {
+        "created": "2024-01-15T10:30:00Z",
+        "creators": ["Tool: bitbake"]
+    },
+    "name": "test-image-spdx",
+    "packages": [
+        {
+            "SPDXID": "SPDXRef-Package-openssl",
+            "name": "openssl",
+            "versionInfo": "3.0.13",
+            "downloadLocation": "https://www.openssl.org/source/openssl-3.0.13.tar.gz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/openssl@3.0.13"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-curl",
+            "name": "curl",
+            "versionInfo": "8.5.0",
+            "downloadLocation": "https://curl.se/download/curl-8.5.0.tar.gz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/curl@8.5.0"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-gcc-runtime-native",
+            "name": "gcc-runtime-native",
+            "versionInfo": "12.3.0",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-qemu-native",
+            "name": "qemu-native",
+            "versionInfo": "8.2.0",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-bluetooth-firmware",
+            "name": "bluetooth-firmware",
+            "versionInfo": "1.0.0",
+            "downloadLocation": "https://example.com/bt-fw"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-wifi-driver",
+            "name": "wifi-driver",
+            "versionInfo": "2.1.0",
+            "downloadLocation": "https://example.com/wifi"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-glibc",
+            "name": "glibc",
+            "versionInfo": "2.38",
+            "downloadLocation": "https://ftp.gnu.org/gnu/glibc/glibc-2.38.tar.xz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/glibc@2.38"
+                }
+            ]
+        }
+    ]
+}
