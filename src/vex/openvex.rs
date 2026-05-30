@@ -1,17 +1,33 @@
+//! OpenVEX v0.2.0 document generator.
+//!
+//! Generates spec-compliant OpenVEX JSON-LD documents from vulnerability
+//! assessment results.
+
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
+/// VEX status labels as defined by the VEX Working Group.
+///
+/// These labels indicate the relationship between a vulnerability and a
+/// software product.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum VexStatus {
+    /// The product is not affected by the vulnerability.
+    /// Requires a `justification` or `impact_statement`.
     NotAffected,
+    /// The product is affected by the vulnerability.
+    /// Requires an `action_statement`.
     Affected,
+    /// The product contains a fix for the vulnerability.
     Fixed,
+    /// It is not yet known whether the product is affected.
     UnderInvestigation,
 }
 
 impl VexStatus {
+    /// Returns the string representation of the status label.
     pub fn as_str(&self) -> &'static str {
         match self {
             VexStatus::NotAffected => "not_affected",
@@ -22,12 +38,24 @@ impl VexStatus {
     }
 }
 
+/// A single VEX statement linking a vulnerability to a product.
+///
+/// Each statement asserts the impact status of one vulnerability on one
+/// product, with optional justification.
 #[derive(Debug, Clone, Serialize)]
 pub struct VexStatement {
+    /// Vulnerability identifier (e.g., "CVE-2024-12345").
     pub vulnerability_name: String,
+    /// Product identifier as a Package URL (e.g., "pkg:generic/openssl@3.0.13").
     pub product_purl: String,
+    /// Impact status of the vulnerability on this product.
     pub status: VexStatus,
+    /// Machine-readable justification for `not_affected` status.
+    /// Valid values: `component_not_present`, `vulnerable_code_not_present`,
+    /// `vulnerable_code_not_in_execute_path`, etc.
     pub justification: Option<String>,
+    /// Human-readable explanation of why the product is not affected,
+    /// or what action should be taken.
     pub impact_statement: Option<String>,
 }
 
@@ -53,6 +81,9 @@ struct OpenVexStatement {
     impact_statement: Option<String>,
 }
 
+/// OpenVEX v0.2.0 document structure.
+///
+/// Conforms to the [OpenVEX specification](https://github.com/openvex/spec).
 #[derive(Debug, Serialize)]
 pub struct VexDocument {
     #[serde(rename = "@context")]
@@ -67,7 +98,37 @@ pub struct VexDocument {
     statements: Vec<OpenVexStatement>,
 }
 
-pub fn generate_openvex(statements: &[VexStatement], author: &str) -> VexDocument {
+/// Generate an OpenVEX v0.2.0 document from a list of statements.
+///
+/// Creates a complete, spec-compliant OpenVEX document with a unique
+/// identifier and current timestamp.
+///
+/// # Arguments
+///
+/// * `statements` - List of VEX statements to include
+/// * `author` - Author identifier (e.g., "Company <email@example.com>")
+///
+/// # Examples
+///
+/// ```rust
+/// use bitvex::vex::{VexStatement, VexStatus, generate_openvex};
+///
+/// let statements = vec![VexStatement {
+///     vulnerability_name: "CVE-2024-12345".into(),
+///     product_purl: "pkg:generic/openssl@3.0.13".into(),
+///     status: VexStatus::NotAffected,
+///     justification: Some("component_not_present".into()),
+///     impact_statement: Some("Not deployed on target".into()),
+/// }];
+///
+/// let doc = generate_openvex(&statements, "My Company <sec@company.com>");
+/// let json = serde_json::to_string_pretty(&doc).unwrap();
+/// assert!(json.contains("CVE-2024-12345"));
+/// ```
+pub fn generate_openvex(
+    statements: &[VexStatement],
+    author: &str,
+) -> VexDocument {
     let uuid = Uuid::new_v4();
     let doc_id = format!("https://openvex.dev/docs/bitvex/vex-{}", uuid.as_simple());
 

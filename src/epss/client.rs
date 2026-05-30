@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::Deserialize;
 use tracing::{debug, info};
@@ -24,11 +25,34 @@ struct EpssEntry {
     percentile: String,
 }
 
+/// Online client for the EPSS API.
+///
+/// Queries [FIRST.org's EPSS API](https://www.first.org/epss/) to get
+/// exploit prediction scores for CVE vulnerabilities. Only standard
+/// CVE-xxxx IDs are accepted; non-CVE IDs (GHSA, OSV, etc.) are skipped.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use bitvex::epss::EpssClient;
+///
+/// # async fn example() -> anyhow::Result<()> {
+/// let client = EpssClient::new()?;
+/// let cve_ids = vec!["CVE-2024-12345".to_string()];
+/// let scores = client.query_batch(&cve_ids).await?;
+///
+/// for score in &scores {
+///     println!("{}: EPSS {:.1}%", score.cve, score.epss * 100.0);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct EpssClient {
     http: Client,
 }
 
 impl EpssClient {
+    /// Create a new EPSS client.
     pub fn new() -> Result<Self> {
         let http = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
@@ -55,12 +79,23 @@ impl EpssClient {
             vuln_ids.len() - cve_ids.len()
         );
 
+        let pb = ProgressBar::new(cve_ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("  Querying EPSS  [{bar:30}] {pos}/{len} CVEs")
+                .unwrap()
+                .progress_chars("█░"),
+        );
+
         let mut all_scores = Vec::with_capacity(cve_ids.len());
 
         for chunk in cve_ids.chunks(BATCH_SIZE) {
             let scores = self.query_chunk(chunk).await?;
+            pb.inc(chunk.len() as u64);
             all_scores.extend(scores);
         }
+
+        pb.finish_with_message("done");
 
         Ok(all_scores)
     }
@@ -82,7 +117,10 @@ impl EpssClient {
             anyhow::bail!("EPSS API returned {status}: {body}");
         }
 
-        let epss_resp: EpssResponse = resp.json().await.context("Failed to parse EPSS response")?;
+        let epss_resp: EpssResponse = resp
+            .json()
+            .await
+            .context("Failed to parse EPSS response")?;
 
         let scores: Vec<EpssScore> = epss_resp
             .data

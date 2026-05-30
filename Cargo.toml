@@ -1,6 +1,6 @@
 [package]
 name = "bitvex"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 authors = ["Manuel Neto Romero"]
 description = "Automate CRA compliance: generate OpenVEX reports from Yocto SBOMs by filtering CVEs with kernel config and device tree analysis"
@@ -34,6 +34,8 @@ zip = "4"
 dirs = "6"
 csv = "1"
 flate2 = "1"
+futures = "0.3"
+colored = "3"
 
 [dev-dependencies]
 tempfile = "3"

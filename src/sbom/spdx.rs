@@ -1,12 +1,26 @@
+//! SPDX JSON SBOM parser.
+//!
+//! Parses Software Bill of Materials (SBOM) documents in SPDX JSON format
+//! (v2.2 and v2.3) and extracts package information for vulnerability analysis.
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
+/// A package extracted from an SPDX SBOM document.
+///
+/// Represents a single software package with its identifying information.
+/// The `purl` (Package URL) is optional because not all SPDX documents
+/// include external references.
 #[derive(Debug, Clone, Serialize)]
 pub struct SbomPackage {
+    /// SPDX identifier (e.g., "SPDXRef-Package-openssl").
     pub _spdx_id: String,
+    /// Package name (e.g., "openssl", "curl", "glibc").
     pub name: String,
+    /// Package version (e.g., "3.0.13"). May be absent.
     pub version: Option<String>,
+    /// Package URL (e.g., "pkg:generic/openssl@3.0.13"). May be absent.
     pub purl: Option<String>,
 }
 
@@ -40,6 +54,41 @@ struct ExternalRef {
     reference_locator: String,
 }
 
+/// Parse an SPDX JSON document and extract packages.
+///
+/// Reads an SPDX JSON document (v2.2 or v2.3) and extracts all packages
+/// with their names, versions, and Package URLs (if available).
+///
+/// # Arguments
+///
+/// * `data` - Raw bytes of the SPDX JSON document
+///
+/// # Returns
+///
+/// A vector of [`SbomPackage`] structs, one for each package in the document.
+///
+/// # Errors
+///
+/// Returns an error if the JSON is malformed or required fields are missing.
+///
+/// # Examples
+///
+/// ```rust
+/// use bitvex::sbom::parse_spdx_sbom;
+///
+/// let json = r#"{
+///     "SPDXID": "SPDXRef-DOCUMENT",
+///     "packages": [{
+///         "SPDXID": "SPDXRef-Package-openssl",
+///         "name": "openssl",
+///         "versionInfo": "3.0.13"
+///     }]
+/// }"#;
+///
+/// let packages = parse_spdx_sbom(json.as_bytes()).unwrap();
+/// assert_eq!(packages[0].name, "openssl");
+/// assert_eq!(packages[0].version.as_deref(), Some("3.0.13"));
+/// ```
 pub fn parse_spdx_sbom(data: &[u8]) -> Result<Vec<SbomPackage>> {
     let doc: SpdxDocument =
         serde_json::from_slice(data).context("Failed to parse SPDX JSON document")?;
@@ -107,7 +156,10 @@ mod tests {
 
         assert_eq!(pkgs[0].name, "openssl");
         assert_eq!(pkgs[0].version.as_deref(), Some("3.0.13"));
-        assert_eq!(pkgs[0].purl.as_deref(), Some("pkg:generic/openssl@3.0.13"));
+        assert_eq!(
+            pkgs[0].purl.as_deref(),
+            Some("pkg:generic/openssl@3.0.13")
+        );
 
         assert_eq!(pkgs[1].name, "curl");
         assert_eq!(pkgs[1].version.as_deref(), Some("8.5.0"));

@@ -11,6 +11,7 @@ Generate spec-compliant OpenVEX reports from Yocto builds by filtering CVEs agai
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen.svg)](#)
 [![OpenVEX](https://img.shields.io/badge/OpenVEX-v0.2.0-purple.svg)](https://openvex.dev/)
 [![SPDX](https://img.shields.io/badge/SPDX-2.3-blue.svg)](https://spdx.dev/)
+[![EPSS](https://img.shields.io/badge/EPSS-Integrated-yellow.svg)](https://www.first.org/epss/)
 
 [Getting Started](#getting-started) ·
 [Features](#features) ·
@@ -40,7 +41,7 @@ Manual triage of hundreds of CVEs per build is unsustainable. **BitVex automates
 
 ## What BitVex Does
 
-BitVex takes three inputs from your Yocto build and produces an auditable VEX document:
+BitVex takes inputs from your Yocto build and produces an auditable VEX document:
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
@@ -55,8 +56,8 @@ BitVex takes three inputs from your Yocto build and produces an auditable VEX do
                     └──────┬──────┘
                            │
                     ┌──────▼──────┐
-                    │  OpenVEX    │
-                    │  Report     │
+                    │  OpenVEX /  │
+                    │  SARIF      │
                     └─────────────┘
 ```
 
@@ -72,7 +73,25 @@ BitVex takes three inputs from your Yocto build and produces an auditable VEX do
 |---|---|---|---|
 | **Native Recipes** | SBOM package names | Packages ending in `-native` are build host tools | `component_not_present` |
 | **Kernel Config** | `.config` file | Drivers with `CONFIG_XXX` not set to `=y` or `=m` | `vulnerable_code_not_present` |
-| **Device Tree** | `.dts` source | Peripherals with `status = "disabled"` | `vulnerable_code_not_in_execute_path` |
+| **Device Tree** | `.dts` / `.dtb` | Peripherals with `status = "disabled"` | `vulnerable_code_not_in_execute_path` |
+| **U-Boot Config** | U-Boot `.config` | Bootloader drivers not compiled | `vulnerable_code_not_present` |
+
+### EPSS Integration
+
+BitVex integrates FIRST.org's [Exploit Prediction Scoring System](https://www.first.org/epss/) to prioritize CVEs by real-world exploitability:
+
+```
+| CVE          | Package     | EPSS  | Percentile | Status   |
+|--------------|-------------|-------|------------|----------|
+| CVE-2021-3749| axios@0.21.0| 8.9%  | 92.7%      | affected |
+| CVE-2021-23337| lodash@4.17| 4.3%  | 89.1%      | affected |
+| CVE-2020-8203 | lodash@4.17| 2.5%  | 85.7%      | affected |
+```
+
+- Online mode: queries EPSS API in real-time
+- Offline mode: download CSV database for air-gapped environments
+- CI gating: `--fail-on-high` / `--fail-on-critical` exit codes
+- Alias resolution: GHSA/OSV vulnerability IDs are automatically mapped to CVE-xxxx via OSV API for EPSS lookup
 
 ### Rules Engine
 
@@ -100,14 +119,17 @@ justification = "component_not_present"
 
 ### Offline Mode
 
-Download the OSV vulnerability database and scan without internet — perfect for air-gapped environments:
+Download vulnerability databases and scan without internet — perfect for air-gapped environments:
 
 ```bash
-# Download (~35 MB for Linux + Alpine + crates.io)
+# Download OSV database (~35 MB for Linux + Alpine + crates.io)
 bitvex download-db --profile medium
 
-# Scan offline
-bitvex --offline --sbom ... --kernel-config ... --device-tree ...
+# Download EPSS database (~250 MB)
+bitvex download-epss-db
+
+# Scan offline (no internet needed)
+bitvex --offline --epss-offline --sbom ... --kernel-config ... --device-tree ...
 ```
 
 ### SBOM Diff
@@ -128,6 +150,36 @@ bitvex diff --old v1.spdx.json --new v2.spdx.json
 ╚══════════════════════════════════════════════════════╝
 ```
 
+### Delta VEX
+
+Compare two VEX documents to track changes over time:
+
+```bash
+bitvex delta --old report-v1.vex.json --new report-v2.vex.json
+```
+
+```
+╔══════════════════════════════════════════════════════╗
+║          BitVex - VEX Delta Report                  ║
+╠══════════════════════════════════════════════════════╣
+║  New CVEs:             3                            ║
+║  Resolved CVEs:        1                            ║
+║  Status changes:       2                            ║
+╚══════════════════════════════════════════════════════╝
+```
+
+### Multi-Format Output
+
+Export to OpenVEX (default) or SARIF for GitHub Security tab:
+
+```bash
+# OpenVEX (default)
+bitvex --sbom ... --output report.vex.json
+
+# SARIF for GitHub Security
+bitvex --sbom ... --format sarif --output report.sarif.json
+```
+
 ### Download Profiles
 
 Choose your database size based on your needs:
@@ -139,6 +191,30 @@ Choose your database size based on your needs:
 | `big` | + Debian, PyPI | ~116 MB | Full coverage |
 | `complete` | All 10 ecosystems | ~822 MB | Maximum audit |
 
+### CI/CD Integration
+
+Exit codes for pipeline gating:
+
+```bash
+# Fail if any CVE is not mitigated
+bitvex --sbom ... --fail-on-any
+
+# Fail if any CVE has EPSS > 0.7 (high exploitability)
+bitvex --sbom ... --epss --fail-on-high
+
+# Fail if any CVE has EPSS > 0.9 (critical)
+bitvex --sbom ... --epss --fail-on-critical
+```
+
+### DTB Auto-Decompile
+
+BitVex automatically detects compiled Device Tree binaries and decompiles them:
+
+```bash
+# Works with both .dts and .dtb
+bitvex --sbom ... --device-tree board.dtb
+```
+
 ---
 
 ## Getting Started
@@ -146,10 +222,9 @@ Choose your database size based on your needs:
 ### Prerequisites
 
 - Rust 1.85+ (install via [rustup](https://rustup.rs/))
-- Three files from your Yocto build:
-  - SBOM in SPDX JSON format (generated by `meta-spdxscanner` or `syft`)
-  - Kernel `.config` file
-  - Device Tree source (`.dts`)
+- Files from your Yocto build:
+  - **Required:** SBOM in SPDX JSON format
+  - **Optional:** Kernel `.config`, Device Tree (`.dts`/`.dtb`), U-Boot `.config`
 
 ### Install
 
@@ -173,13 +248,22 @@ bitvex \
   --output rpi4-cra-report.vex.json \
   --author "Acme Devices <security@acme.com>"
 
-# 3. Or scan offline (no internet needed)
+# 3. With EPSS scoring
+bitvex \
+  --sbom build/image-spdx.json \
+  --epss \
+  --output report.vex.json
+
+# 4. Scan offline (no internet needed)
 bitvex \
   --offline \
   --sbom build/image-spdx.json \
   --kernel-config build/.config \
   --device-tree build/board.dts \
   --rules bitvex.toml
+
+# 5. All inputs optional (scan SBOM only)
+bitvex --sbom build/image-spdx.json --epss --output report.vex.json
 ```
 
 ### Output
@@ -190,12 +274,15 @@ bitvex \
 ╠══════════════════════════════════════════════════════╣
 ║  Total packages analyzed:     142                    ║
 ║  Native packages filtered:     23                    ║
-║  Kernel drivers filtered:      12                    ║
+║  Kernel/U-Boot filtered:      12                    ║
 ║  DTS disabled filtered:         5                    ║
 ║  ─────────────────────────────────────              ║
 ║  CVEs marked not_affected:     40                    ║
 ║  CVEs marked fixed:             0                    ║
 ║  Real CVEs to address:         12                    ║
+║  ─────────────────────────────────────              ║
+║  EPSS high risk (>0.7):        2                    ║
+║  EPSS critical (>0.9):         0                    ║
 ╚══════════════════════════════════════════════════════╝
 ```
 
@@ -206,48 +293,57 @@ bitvex \
 ### Scan Mode (default)
 
 ```
-bitvex [OPTIONS] --sbom <PATH> --kernel-config <PATH> --device-tree <PATH>
+bitvex [OPTIONS] --sbom <PATH>
 
 Options:
-      --sbom <PATH>           SBOM in SPDX JSON format
-      --kernel-config <PATH>  Linux kernel .config file
-      --device-tree <PATH>    Device Tree source (.dts)
-  -o, --output <PATH>         Output OpenVEX file [default: bitvex-report.vex.json]
-      --author <STRING>       VEX document author
-      --rules <PATH>          Path to bitvex.toml rules file
-      --offline               Use offline OSV database
-      --download-db           Download DB before scanning
-      --profile <PROFILE>     Download profile (small/medium/big/complete)
-  -y, --yes                   Skip confirmation prompts
-  -v, --verbose               Enable debug logging
+      --sbom <PATH>              SBOM in SPDX JSON format (required)
+      --kernel-config <PATH>     Linux kernel .config (optional, multiple)
+      --uboot-config <PATH>      U-Boot .config (optional)
+      --device-tree <PATH>       Device Tree .dts/.dtb (optional)
+  -o, --output <PATH>            Output file [default: bitvex-report.vex.json]
+      --format <FORMAT>          Output format: openvex | sarif
+      --author <STRING>          VEX document author
+      --rules <PATH>             bitvex.toml rules file
+      --offline                  Use offline OSV database
+      --download-db              Download DB before scanning
+      --profile <PROFILE>        Download profile (small/medium/big/complete)
+      --epss                     Enable EPSS scoring
+      --epss-offline             Use offline EPSS database
+      --download-epss-db         Download EPSS database
+      --epss-threshold <FLOAT>   EPSS low_priority threshold [default: 0.0]
+      --fail-on-any              Exit 1 if any CVE affected
+      --fail-on-high             Exit 1 if EPSS > 0.7
+      --fail-on-critical         Exit 1 if EPSS > 0.9
+  -y, --yes                      Skip confirmation prompts
+  -v, --verbose                  Debug logging
 ```
 
 ### Diff Mode
 
-```
+```bash
 bitvex diff --old <PATH> --new <PATH> [--output <PATH>]
+```
+
+### Delta VEX
+
+```bash
+bitvex delta --old <PATH> --new <PATH> [--output <PATH>]
 ```
 
 ### Download Database
 
-```
-bitvex download-db [OPTIONS]
-
-Options:
-      --db-path <PATH>        Custom database path
-      --ecosystems <LIST>     Comma-separated ecosystems
-      --profile <PROFILE>     small | medium | big | complete
-  -y, --yes                   Skip confirmation prompt
+```bash
+bitvex download-db [--profile <PROFILE>] [--ecosystems <LIST>] [-y]
+bitvex download-epss-db [--db-path <PATH>] [-y]
 ```
 
 ---
 
 ## Integration
 
-### CI/CD Pipeline
+### CI/CD Pipeline (GitHub Actions)
 
 ```yaml
-# GitHub Actions example
 - name: Download OSV Database
   run: bitvex download-db --profile medium -y
 
@@ -258,14 +354,20 @@ Options:
       --sbom build/image-spdx.json \
       --kernel-config build/.config \
       --device-tree build/board.dts \
-      --output vex-report.vex.json \
+      --format sarif \
+      --output results.sarif.json \
       --author "${{ github.repository_owner }} <ci@${{ github.repository_owner }}.com>"
+
+- name: Upload SARIF to GitHub Security
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif.json
 
 - name: Upload VEX Artifact
   uses: actions/upload-artifact@v4
   with:
     name: vex-report
-    path: vex-report.vex.json
+    path: results.sarif.json
 ```
 
 ### Yocto Integration
@@ -289,26 +391,28 @@ generate_vex_report() {
 ### Input Format Requirements
 
 <details>
-<summary><strong>SBOM (SPDX 2.3 JSON)</strong></summary>
+<summary><strong>SBOM (SPDX 2.2 / 2.3 JSON)</strong></summary>
 
 Produced by Yocto's `meta-spdxscanner` or tools like [syft](https://github.com/anchore/syft). Required fields per package:
 - `name` — package identifier
 - `versionInfo` — version string
 - `externalRefs` — optional `purl` (Package URL)
 
+SPDX 3.0 is detected with a warning (full support planned).
+
 </details>
 
 <details>
 <summary><strong>Kernel .config</strong></summary>
 
-Standard Linux kernel configuration. Located at `${STAGING_KERNEL_BUILDDIR}/.config` in a Yocto build.
+Standard Linux kernel configuration. Located at `${STAGING_KERNEL_BUILDDIR}/.config` in a Yocto build. Supports multiple config fragments via `--kernel-config`.
 
 </details>
 
 <details>
-<summary><strong>Device Tree (.dts)</strong></summary>
+<summary><strong>Device Tree (.dts / .dtb)</strong></summary>
 
-Source format, not compiled `.dtb`. To decompile:
+Source format (`.dts`) or compiled binary (`.dtb`). BitVex auto-detects DTB and decompiles using `dtc`. Supports modern DTS syntax including `/omit-if-no-ref/` blocks. To manually decompile:
 
 ```bash
 dtc -I dtb -O dts -o board.dts board.dtb
@@ -318,33 +422,46 @@ In Yocto, the preprocessed DTS is typically in `${STAGING_KERNEL_BUILDDIR}/arch/
 
 </details>
 
+<details>
+<summary><strong>U-Boot .config</strong></summary>
+
+Same format as kernel `.config`. Located in the U-Boot build directory.
+
+</details>
+
 ---
 
 ## Architecture
 
 ```
 src/
-├── main.rs              Pipeline orchestration
+├── main.rs              CLI dispatch
 ├── lib.rs               Public API exports
+├── pipeline.rs          Scan pipeline orchestration
 ├── cli.rs               CLI args + subcommands (clap)
 ├── sbom/
-│   ├── spdx.rs          SPDX JSON parser
+│   ├── spdx.rs          SPDX JSON parser (v2.2/v2.3)
 │   └── diff.rs          SBOM diff engine
 ├── osv/
-│   ├── client.rs        Async OSV API client (online)
+│   ├── client.rs        Async OSV API client (concurrent alias fetching)
 │   ├── offline.rs       Offline OSV provider
 │   └── db.rs            DB download with profiles + progress
+├── epss/
+│   ├── client.rs        EPSS API client (online)
+│   └── offline.rs       EPSS CSV parser (offline)
 ├── filters/
 │   ├── native.rs        Host-only recipe filter
-│   ├── kernel_config.rs .config cross-reference
-│   ├── device_tree.rs   DTS status cross-reference
+│   ├── kernel_config.rs .config cross-reference (known mappings + heuristics)
+│   ├── device_tree.rs   DTS/DTB status cross-reference
 │   └── rules.rs         Custom rules engine
 ├── rules/
 │   └── mod.rs           bitvex.toml parser + rule matching
 ├── vex/
-│   └── openvex.rs       OpenVEX v0.2.0 generator
+│   ├── openvex.rs       OpenVEX v0.2.0 generator
+│   └── delta.rs         VEX delta comparison
 └── output/
-    └── console.rs       Console summary formatter
+    ├── console.rs       Console summary formatter (with progress bars)
+    └── sarif.rs         SARIF 2.1.0 generator
 ```
 
 ---
@@ -353,7 +470,7 @@ src/
 
 ```bash
 cargo build              # Compile
-cargo test               # Run 38 tests (27 unit + 11 integration)
+cargo test               # Run 48 tests (37 unit + 11 integration)
 cargo clippy             # Lint (0 warnings)
 cargo fmt                # Format
 ```
@@ -364,9 +481,9 @@ cargo fmt                # Format
 
 BitVex follows the principle of least privilege:
 
-- **No credentials required** — OSV API is free and anonymous
-- **No data sent** — only package names/versions are transmitted to OSV
-- **Offline mode** — download DB once, scan without internet
+- **No credentials required** — OSV and EPSS APIs are free and anonymous
+- **Minimal data sent** — only package names/versions transmitted to OSV/EPSS
+- **Offline mode** — download DBs once, scan without internet
 - **Local processing** — all filtering happens on your machine
 - **Deterministic output** — same inputs produce the same VEX document
 
@@ -389,5 +506,6 @@ This project is licensed under the [Server Side Public License (SSPL-1.0)](LICEN
 
 - [OpenVEX](https://openvex.dev/) — VEX specification
 - [OSV](https://osv.dev/) — vulnerability database
+- [EPSS](https://www.first.org/epss/) — exploit prediction scoring
 - [CISA](https://www.cisa.gov/) — VEX minimum requirements
 - [Yocto Project](https://www.yoctoproject.org/) — embedded Linux build system

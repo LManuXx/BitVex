@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
+use futures::future::join_all;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
@@ -11,16 +13,28 @@ const OSV_BATCH_URL: &str = "https://api.osv.dev/v1/querybatch";
 const OSV_VULN_URL: &str = "https://api.osv.dev/v1/vulns";
 const BATCH_SIZE: usize = 100;
 
+/// A vulnerability entry from the OSV database.
+///
+/// Contains the vulnerability ID, modification timestamp, and aliases
+/// (e.g., GHSA-xxx → CVE-xxxx mapping).
 #[derive(Debug, Clone)]
 pub struct OsvVuln {
+    /// Vulnerability identifier (e.g., "CVE-2024-12345" or "GHSA-xxx").
     pub id: String,
+    /// Last modification timestamp from OSV.
     pub _modified: String,
+    /// Aliases for this vulnerability (e.g., CVE IDs for GHSA entries).
     pub aliases: Vec<String>,
 }
 
+/// Result of querying OSV for a single package.
+///
+/// Links a package from the SBOM to its known vulnerabilities.
 #[derive(Debug, Clone)]
 pub struct OsvResult {
+    /// The package that was queried.
     pub package: SbomPackage,
+    /// List of vulnerabilities affecting this package.
     pub vulns: Vec<OsvVuln>,
 }
 
@@ -69,6 +83,34 @@ struct VulnDetail {
     aliases: Option<Vec<String>>,
 }
 
+/// Async client for the OSV vulnerability database API.
+///
+/// Queries the [OSV API](https://osv.dev/) to find known vulnerabilities
+/// for software packages. Supports batch queries and concurrent alias
+/// resolution for GHSA/OSV vulnerability IDs.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use bitvex::osv::OsvClient;
+/// use bitvex::sbom::SbomPackage;
+///
+/// # async fn example() -> anyhow::Result<()> {
+/// let client = OsvClient::new()?;
+/// let packages = vec![SbomPackage {
+///     _spdx_id: "SPDXRef-1".into(),
+///     name: "openssl".into(),
+///     version: Some("3.0.13".into()),
+///     purl: Some("pkg:generic/openssl@3.0.13".into()),
+/// }];
+///
+/// let results = client.query_batch(&packages).await?;
+/// for result in &results {
+///     println!("{}: {} vulns", result.package.name, result.vulns.len());
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct OsvClient {
     http: Client,
 }
@@ -83,12 +125,23 @@ impl OsvClient {
     }
 
     pub async fn query_batch(&self, packages: &[SbomPackage]) -> Result<Vec<OsvResult>> {
+        let pb = ProgressBar::new(packages.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("  Querying OSV   [{bar:30}] {pos}/{len} packages")
+                .unwrap()
+                .progress_chars("█░"),
+        );
+
         let mut all_results = Vec::with_capacity(packages.len());
 
         for chunk in packages.chunks(BATCH_SIZE) {
             let results = self.query_chunk(chunk).await?;
+            pb.inc(chunk.len() as u64);
             all_results.extend(results);
         }
+
+        pb.finish_with_message("done");
 
         // Enrich vulnerabilities with aliases (CVE IDs)
         self.enrich_aliases(&mut all_results).await?;
@@ -97,7 +150,6 @@ impl OsvClient {
     }
 
     async fn enrich_aliases(&self, results: &mut [OsvResult]) -> Result<()> {
-        // Collect unique vuln IDs that don't start with CVE-
         let non_cve_ids: Vec<String> = results
             .iter()
             .flat_map(|r| r.vulns.iter())
@@ -112,22 +164,38 @@ impl OsvClient {
         }
 
         info!(
-            "Fetching aliases for {} non-CVE vulnerabilities",
+            "Fetching aliases for {} non-CVE vulnerabilities (concurrent)",
             non_cve_ids.len()
         );
 
-        // Fetch aliases for each unique non-CVE vulnerability
-        let mut alias_map: HashMap<String, Vec<String>> = HashMap::new();
+        let pb = ProgressBar::new(non_cve_ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("  Fetching CVEs  [{bar:30}] {pos}/{len} aliases")
+                .unwrap()
+                .progress_chars("█░"),
+        );
 
-        for vuln_id in &non_cve_ids {
-            if let Ok(aliases) = self.fetch_aliases(vuln_id).await {
+        // Concurrent alias fetching
+        let futures: Vec<_> = non_cve_ids
+            .iter()
+            .map(|id| self.fetch_aliases(id))
+            .collect();
+
+        let results_vec = join_all(futures).await;
+
+        let mut alias_map: HashMap<String, Vec<String>> = HashMap::new();
+        for (vuln_id, result) in non_cve_ids.iter().zip(results_vec) {
+            if let Ok(aliases) = result {
                 if !aliases.is_empty() {
                     alias_map.insert(vuln_id.clone(), aliases);
                 }
             }
+            pb.inc(1);
         }
 
-        // Enrich results with aliases
+        pb.finish_with_message("done");
+
         for result in results.iter_mut() {
             for vuln in result.vulns.iter_mut() {
                 if let Some(aliases) = alias_map.get(&vuln.id) {
@@ -201,7 +269,6 @@ impl OsvClient {
                 .collect());
         }
 
-        info!("Querying OSV for {} packages", queries.len());
         let req_body = QueryBatchRequest { queries };
 
         let resp = self
@@ -254,7 +321,6 @@ impl OsvClient {
                     vulns.len()
                 );
 
-                // Find original index
                 if let Some(orig) = results.iter_mut().find(|r| r.package.name == pkg.name) {
                     orig.vulns = vulns;
                 }

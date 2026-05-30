@@ -1,3 +1,29 @@
+//! Custom filtering rules engine.
+//!
+//! Parses `bitvex.toml` configuration files and evaluates rules against
+//! vulnerability results. Rules can match by CVE ID, glob pattern,
+//! package name, and version.
+//!
+//! # Rule File Format
+//!
+//! ```toml
+//! [author]
+//! name = "Company <security@company.com>"
+//!
+//! [[rules]]
+//! name = "Ignore specific CVE"
+//! cve = "CVE-2024-12345"
+//! package = "openssl"
+//! status = "not_affected"
+//! justification = "vulnerable_code_not_present"
+//! impact_statement = "Patched in our build"
+//!
+//! [[rules]]
+//! name = "All glibc CVEs under investigation"
+//! package = "glibc"
+//! status = "under_investigation"
+//! ```
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
@@ -5,36 +31,58 @@ use tracing::info;
 
 use crate::vex::VexStatus;
 
+/// Configuration loaded from a `bitvex.toml` rules file.
 #[derive(Debug, Deserialize)]
 pub struct RulesConfig {
+    /// Optional author override for the VEX document.
     pub author: Option<AuthorConfig>,
+    /// List of filtering rules.
     #[serde(default)]
     pub rules: Vec<Rule>,
 }
 
+/// Author configuration in a rules file.
 #[derive(Debug, Deserialize)]
 pub struct AuthorConfig {
+    /// Author name and contact (e.g., "Company <email@example.com>").
     pub name: String,
 }
 
+/// A single filtering rule.
+///
+/// Rules match vulnerabilities based on CVE ID, glob pattern, package name,
+/// and/or version. The first matching rule determines the VEX status.
 #[derive(Debug, Deserialize, Clone)]
 pub struct Rule {
+    /// Human-readable name for this rule.
     pub name: String,
+    /// Match a specific CVE ID (e.g., "CVE-2024-12345").
     pub cve: Option<String>,
+    /// Match CVE IDs by glob pattern (e.g., "CVE-2024-*").
     pub cve_pattern: Option<String>,
+    /// Match a specific package name (e.g., "openssl").
     pub package: Option<String>,
+    /// Match a specific package version (e.g., "3.0.13").
     pub version: Option<String>,
+    /// VEX status to assign when this rule matches.
     pub status: RuleStatus,
+    /// Justification for `not_affected` status.
     pub justification: Option<String>,
+    /// Human-readable impact statement.
     pub impact_statement: Option<String>,
 }
 
+/// VEX status values for rules.
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RuleStatus {
+    /// Product is not affected by the vulnerability.
     NotAffected,
+    /// Product is affected by the vulnerability.
     Affected,
+    /// Product contains a fix for the vulnerability.
     Fixed,
+    /// It is not yet known whether the product is affected.
     UnderInvestigation,
 }
 

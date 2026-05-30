@@ -1,3 +1,8 @@
+//! Console output formatting.
+//!
+//! Generates human-readable summaries of the BitVex scan results,
+//! including vulnerability tables with EPSS scores.
+
 use std::collections::HashMap;
 
 use tabled::{Table, Tabled};
@@ -19,17 +24,33 @@ struct VulnRow {
     justification: String,
 }
 
+/// Data for generating the console summary.
+///
+/// Contains all the information needed to display the scan results,
+/// including package counts, filter statistics, and vulnerability details.
 pub struct SummaryData<'a> {
+    /// Total number of packages in the SBOM.
     pub total_packages: usize,
+    /// Number of native (host-only) packages filtered out.
     pub native_filtered: usize,
+    /// Number of packages filtered by kernel/U-Boot config.
     pub kernel_filtered: usize,
+    /// Number of packages filtered by device tree.
     pub dts_filtered: usize,
+    /// All VEX statements generated during the scan.
     pub statements: &'a [VexStatement],
+    /// EPSS scores for CVEs (if EPSS was enabled).
     pub epss_scores: &'a [EpssScore],
+    /// Whether EPSS scoring was enabled.
     pub epss_enabled: bool,
+    /// Map from vulnerability ID to CVE alias (for GHSA→CVE resolution).
     pub vuln_cve_map: &'a HashMap<String, String>,
 }
 
+/// Print the scan summary to stdout.
+///
+/// Displays a formatted table with scan statistics and a detailed
+/// table of vulnerabilities requiring attention.
 pub fn print_summary(data: &SummaryData) {
     let real_cve_count = data
         .statements

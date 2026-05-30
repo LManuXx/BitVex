@@ -1,3 +1,12 @@
+//! Kernel configuration filter.
+//!
+//! Filters CVEs based on Linux kernel `.config` file. If a driver or feature
+//! is not enabled (`CONFIG_XXX` is not `=y` or `=m`), vulnerabilities in that
+//! component are marked as `not_affected`.
+//!
+//! Includes known mappings for common embedded packages (bluez5→BT, etc.)
+//! and automatically skips userspace packages (glibc, bash, python, etc.).
+
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -9,12 +18,48 @@ use crate::vex::{VexStatement, VexStatus};
 
 const JUSTIFICATION: &str = "vulnerable_code_not_present";
 
+/// Kernel configuration value for a CONFIG_ option.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigValue {
+    /// `CONFIG_XXX=y` — compiled into the kernel image.
     BuiltIn,
+    /// `CONFIG_XXX=m` — compiled as a loadable module.
     Module,
+    /// `CONFIG_XXX=n` — explicitly disabled.
     Disabled,
+    /// `# CONFIG_XXX is not set` — not enabled.
     NotSet,
+}
+
+/// Known package-to-kernel-config mappings for common embedded packages.
+/// These are packages where the heuristic name→CONFIG mapping fails.
+fn known_config_mappings() -> HashMap<&'static str, Vec<&'static str>> {
+    HashMap::from([
+        ("bluez5", vec!["BT", "BLUETOOTH"]),
+        ("wpa-supplicant", vec!["CFG80211", "WLAN", "MAC80211"]),
+        ("openssh", vec!["CRYPTO", "ASYMMETRIC_KEY_TYPE"]),
+        ("openssl", vec!["CRYPTO", "TLS"]),
+        ("iptables", vec!["NETFILTER", "IP_NF_IPTABLES"]),
+        ("systemd", vec!["CGROUPS", "FANOTIFY"]),
+        ("mesa", vec!["DRM"]),
+        ("imx-gpu-viv", vec!["DRM", "MXC_GPU_VIV"]),
+        ("linux-imx", vec!["ARCH_MXC"]),
+        ("u-boot-imx", vec![]),
+    ])
+}
+
+/// Packages that are purely userspace and should never be filtered by kernel config.
+fn is_userspace_package(name: &str) -> bool {
+    let prefixes = [
+        "glibc", "bash", "coreutils", "dbus", "systemd", "python", "ruby",
+        "perl", "php", "node", "npm", "vim", "nano", "gcc", "binutils",
+        "make", "cmake", "autoconf", "busybox", "shadow", "util-linux",
+        "curl", "wget", "openssl", "openssh", "zlib", "libpng", "libxml2",
+        "sqlite", "icu", "mesa", "wayland", "gstreamer", "opkg", "dnsmasq",
+        "avahi", "networkmanager", "bluez", "wpa-supplicant", "iptables",
+    ];
+    let lower = name.to_lowercase();
+    prefixes.iter().any(|p| lower.starts_with(p))
 }
 
 pub fn parse_kernel_config(path: &Path) -> Result<HashMap<String, ConfigValue>> {
@@ -51,17 +96,25 @@ pub fn parse_kernel_config(path: &Path) -> Result<HashMap<String, ConfigValue>> 
     Ok(config)
 }
 
-fn package_name_to_config_key(name: &str) -> String {
-    name.to_uppercase().replace('-', "_")
-}
-
 fn extract_config_keys_from_package(pkg_name: &str) -> Vec<String> {
-    let mut keys = Vec::new();
-    let base = package_name_to_config_key(pkg_name);
-    keys.push(base.clone());
-    keys.push(format!("{}_DRIVER", base));
-    keys.push(format!("{}_MODULE", base));
-    keys
+    // Check known mappings first (these override userspace check)
+    let known = known_config_mappings();
+    if let Some(keys) = known.get(pkg_name) {
+        return keys.iter().map(|k| k.to_string()).collect();
+    }
+
+    // Skip obvious userspace packages (that aren't in known mappings)
+    if is_userspace_package(pkg_name) {
+        return vec![];
+    }
+
+    // Fallback to heuristic
+    let base = pkg_name.to_uppercase().replace('-', "_");
+    vec![
+        base.clone(),
+        format!("{}_DRIVER", base),
+        format!("{}_MODULE", base),
+    ]
 }
 
 pub fn filter_by_kernel_config(
@@ -73,6 +126,11 @@ pub fn filter_by_kernel_config(
 
     for (i, result) in results.iter().enumerate() {
         let config_keys = extract_config_keys_from_package(&result.package.name);
+
+        // Skip if no config keys (userspace package)
+        if config_keys.is_empty() {
+            continue;
+        }
 
         // Only filter if at least one config key actually exists and is disabled
         let has_existing_disabled = config_keys.iter().any(|key| {
@@ -151,5 +209,29 @@ mod tests {
         assert_eq!(config.get("NFS_FS"), Some(&ConfigValue::NotSet));
         assert_eq!(config.get("NET"), Some(&ConfigValue::BuiltIn));
         assert!(config.get("NONEXISTENT").is_none());
+    }
+
+    #[test]
+    fn test_known_mappings() {
+        let keys = extract_config_keys_from_package("bluez5");
+        assert!(keys.contains(&"BT".to_string()));
+        assert!(keys.contains(&"BLUETOOTH".to_string()));
+
+        // openssl has known mapping (CRYPTO, TLS)
+        let keys = extract_config_keys_from_package("openssl");
+        assert!(keys.contains(&"CRYPTO".to_string()));
+    }
+
+    #[test]
+    fn test_userspace_packages_skipped() {
+        // Packages not in known mappings are skipped
+        let keys = extract_config_keys_from_package("glibc");
+        assert!(keys.is_empty());
+
+        let keys = extract_config_keys_from_package("bash");
+        assert!(keys.is_empty());
+
+        let keys = extract_config_keys_from_package("python3");
+        assert!(keys.is_empty());
     }
 }

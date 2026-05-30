@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-05-30
+
+### Added
+
+- Concurrent alias fetching with `futures::join_all` for OSV API
+- Progress bars for OSV and EPSS queries using `indicatif`
+- Delta VEX subcommand: compare two VEX documents and track changes
+- SARIF 2.1.0 output format (`--format sarif`) for GitHub Security tab
+- Improved kernel config filter with known package-to-CONFIG mappings
+- Automatic userspace package detection (glibc, bash, python skipped)
+- Pipeline refactor: extracted scan logic to `src/pipeline.rs`
+- Comprehensive rustdoc documentation on all public APIs
+
+### Changed
+
+- Version bumped to 0.2.7
+- README updated with all v0.2.6 and v0.2.7 features
+
 ## [0.2.6] - 2026-05-30
 
 ### Added
