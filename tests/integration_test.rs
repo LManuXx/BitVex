@@ -544,10 +544,12 @@ fn test_rules_filter_with_osv_results() {
                 OsvVuln {
                     id: "CVE-2024-1234".into(),
                     _modified: "2024-01-01T00:00:00Z".into(),
+                    aliases: vec![],
                 },
                 OsvVuln {
                     id: "CVE-2024-5678".into(),
                     _modified: "2024-01-01T00:00:00Z".into(),
+                    aliases: vec![],
                 },
             ],
         },
@@ -561,6 +563,7 @@ fn test_rules_filter_with_osv_results() {
             vulns: vec![OsvVuln {
                 id: "CVE-2024-9999".into(),
                 _modified: "2024-01-01T00:00:00Z".into(),
+                aliases: vec![],
             }],
         },
     ];

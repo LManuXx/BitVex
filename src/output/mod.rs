@@ -1,3 +1,3 @@
 mod console;
 
-pub use console::print_summary;
+pub use console::{SummaryData, print_summary};

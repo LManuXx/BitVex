@@ -16,11 +16,15 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub sbom: Option<PathBuf>,
 
-    /// Path to the Linux kernel .config file
+    /// Path to the Linux kernel .config file (optional, can specify multiple)
     #[arg(long = "kernel-config", value_name = "PATH")]
-    pub kernel_config: Option<PathBuf>,
+    pub kernel_config: Vec<PathBuf>,
 
-    /// Path to the Device Tree source file (.dts)
+    /// Path to the U-Boot .config file (optional)
+    #[arg(long = "uboot-config", value_name = "PATH")]
+    pub uboot_config: Option<PathBuf>,
+
+    /// Path to the Device Tree file (.dts or .dtb, optional)
     #[arg(long = "device-tree", value_name = "PATH")]
     pub device_tree: Option<PathBuf>,
 
@@ -45,7 +49,7 @@ pub struct Args {
     #[arg(long)]
     pub offline: bool,
 
-    /// Download/update offline OSV database (can combine with --offline)
+    /// Download/update offline OSV database
     #[arg(long)]
     pub download_db: bool,
 
@@ -56,6 +60,38 @@ pub struct Args {
     /// Database download profile (small/medium/big/complete)
     #[arg(long)]
     pub profile: Option<DownloadProfile>,
+
+    /// Enable EPSS scoring for CVEs
+    #[arg(long)]
+    pub epss: bool,
+
+    /// Use offline EPSS database
+    #[arg(long)]
+    pub epss_offline: bool,
+
+    /// Download/update offline EPSS database
+    #[arg(long)]
+    pub download_epss_db: bool,
+
+    /// Path to offline EPSS database directory
+    #[arg(long = "epss-db-path", value_name = "PATH")]
+    pub epss_db_path: Option<PathBuf>,
+
+    /// Mark CVEs below this EPSS threshold as low_priority (0.0-1.0)
+    #[arg(long, value_name = "FLOAT", default_value = "0.0")]
+    pub epss_threshold: f64,
+
+    /// Exit with code 1 if any CVE is affected (not mitigated)
+    #[arg(long)]
+    pub fail_on_any: bool,
+
+    /// Exit with code 1 if any CVE has EPSS > 0.7
+    #[arg(long)]
+    pub fail_on_high: bool,
+
+    /// Exit with code 1 if any CVE has EPSS > 0.9
+    #[arg(long)]
+    pub fail_on_critical: bool,
 
     /// Skip confirmation prompts (accept all)
     #[arg(long, short)]
@@ -96,6 +132,17 @@ pub enum Command {
         /// Download profile: small (29MB), medium (35MB), big (116MB), complete (822MB)
         #[arg(long)]
         profile: Option<DownloadProfile>,
+
+        /// Skip confirmation prompt
+        #[arg(long, short)]
+        yes: bool,
+    },
+
+    /// Download/update the offline EPSS database
+    DownloadEpssDb {
+        /// Path to store the database
+        #[arg(long = "db-path", value_name = "PATH")]
+        db_path: Option<PathBuf>,
 
         /// Skip confirmation prompt
         #[arg(long, short)]

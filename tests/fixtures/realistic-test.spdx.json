@@ -1,0 +1,151 @@
+{
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "spdxVersion": "SPDX-2.3",
+    "creationInfo": {
+        "created": "2024-06-15T10:30:00Z",
+        "creators": ["Tool: bitbake"]
+    },
+    "name": "imx8mp-realworld-test",
+    "packages": [
+        {
+            "SPDXID": "SPDXRef-Package-linux-imx",
+            "name": "linux-imx",
+            "versionInfo": "6.1.55",
+            "downloadLocation": "https://github.com/nxp-imx/linux-imx",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/linux-imx@6.1.55"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-openssl",
+            "name": "openssl",
+            "versionInfo": "3.0.13",
+            "downloadLocation": "https://www.openssl.org/source/openssl-3.0.13.tar.gz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/openssl@3.0.13"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-curl",
+            "name": "curl",
+            "versionInfo": "8.5.0",
+            "downloadLocation": "https://curl.se/download/curl-8.5.0.tar.gz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/curl@8.5.0"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-dnsmasq",
+            "name": "dnsmasq",
+            "versionInfo": "2.89",
+            "downloadLocation": "https://thekelleys.org.uk/dnsmasq/dnsmasq-2.89.tar.xz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/dnsmasq@2.89"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-libxml2",
+            "name": "libxml2",
+            "versionInfo": "2.11.4",
+            "downloadLocation": "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.4.tar.xz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/libxml2@2.11.4"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-axios",
+            "name": "axios",
+            "versionInfo": "0.21.0",
+            "downloadLocation": "https://registry.npmjs.org/axios/-/axios-0.21.0.tgz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:npm/axios@0.21.0"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-lodash",
+            "name": "lodash",
+            "versionInfo": "4.17.15",
+            "downloadLocation": "https://registry.npmjs.org/lodash/-/lodash-4.17.15.tgz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:npm/lodash@4.17.15"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-express",
+            "name": "express",
+            "versionInfo": "4.17.0",
+            "downloadLocation": "https://registry.npmjs.org/express/-/express-4.17.0.tgz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:npm/express@4.17.0"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-gcc-runtime-native",
+            "name": "gcc-runtime-native",
+            "versionInfo": "13.2.0",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-cmake-native",
+            "name": "cmake-native",
+            "versionInfo": "3.27.1",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-ninja-native",
+            "name": "ninja-native",
+            "versionInfo": "1.11.1",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-qemu-native",
+            "name": "qemu-native",
+            "versionInfo": "8.0.4",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-imx-gpu-viv",
+            "name": "imx-gpu-viv",
+            "versionInfo": "6.4.11.p4.6",
+            "downloadLocation": "NONE"
+        },
+        {
+            "SPDXID": "SPDXRef-Package-firmware-imx",
+            "name": "firmware-imx",
+            "versionInfo": "8.21",
+            "downloadLocation": "NONE"
+        }
+    ]
+}

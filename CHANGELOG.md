@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-05-30
+
+### Added
+
+- EPSS integration with online API and offline CSV download
+- Alias resolution: GHSA/OSV IDs mapped to CVE-xxxx via OSV API
+- U-Boot config support for bootloader CVE filtering
+- CI/CD exit codes: --fail-on-any, --fail-on-high, --fail-on-critical
+- DTB auto-decompile (detects binary DTB, runs dtc automatically)
+- SPDX 3.0 version detection with warning
+- /omit-if-no-ref/ DTS syntax support
+- Multiple kernel config fragment support (--kernel-config accepts multiple paths)
+- EPSS column in console output with CVE alias display
+- download-epss-db subcommand for offline EPSS database
+- Real iMX8MP test fixtures with EPSS-enabled integration tests
+
+### Changed
+
+- --kernel-config, --device-tree, --uboot-config are now optional
+- EPSS client filters non-CVE IDs before querying API
+- OSV client fetches vulnerability aliases for CVE resolution
+
 ## [0.2.5] - 2026-05-30
 
 ### Added

@@ -94,6 +94,7 @@ impl OfflineOsvProvider {
                     found.push(OsvVuln {
                         id: vuln.id.clone(),
                         _modified: vuln.modified.clone(),
+                        aliases: vec![],
                     });
                 }
             }
@@ -106,6 +107,7 @@ impl OfflineOsvProvider {
                         found.push(OsvVuln {
                             id: vuln.id.clone(),
                             _modified: vuln.modified.clone(),
+                            aliases: vec![],
                         });
                     }
                 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -6,12 +8,14 @@ use tracing::{debug, info};
 use crate::sbom::SbomPackage;
 
 const OSV_BATCH_URL: &str = "https://api.osv.dev/v1/querybatch";
+const OSV_VULN_URL: &str = "https://api.osv.dev/v1/vulns";
 const BATCH_SIZE: usize = 100;
 
 #[derive(Debug, Clone)]
 pub struct OsvVuln {
     pub id: String,
     pub _modified: String,
+    pub aliases: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +64,11 @@ struct VulnEntry {
     modified: String,
 }
 
+#[derive(Deserialize)]
+struct VulnDetail {
+    aliases: Option<Vec<String>>,
+}
+
 pub struct OsvClient {
     http: Client,
 }
@@ -81,7 +90,80 @@ impl OsvClient {
             all_results.extend(results);
         }
 
+        // Enrich vulnerabilities with aliases (CVE IDs)
+        self.enrich_aliases(&mut all_results).await?;
+
         Ok(all_results)
+    }
+
+    async fn enrich_aliases(&self, results: &mut [OsvResult]) -> Result<()> {
+        // Collect unique vuln IDs that don't start with CVE-
+        let non_cve_ids: Vec<String> = results
+            .iter()
+            .flat_map(|r| r.vulns.iter())
+            .filter(|v| !v.id.starts_with("CVE-"))
+            .map(|v| v.id.clone())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        if non_cve_ids.is_empty() {
+            return Ok(());
+        }
+
+        info!(
+            "Fetching aliases for {} non-CVE vulnerabilities",
+            non_cve_ids.len()
+        );
+
+        // Fetch aliases for each unique non-CVE vulnerability
+        let mut alias_map: HashMap<String, Vec<String>> = HashMap::new();
+
+        for vuln_id in &non_cve_ids {
+            if let Ok(aliases) = self.fetch_aliases(vuln_id).await {
+                if !aliases.is_empty() {
+                    alias_map.insert(vuln_id.clone(), aliases);
+                }
+            }
+        }
+
+        // Enrich results with aliases
+        for result in results.iter_mut() {
+            for vuln in result.vulns.iter_mut() {
+                if let Some(aliases) = alias_map.get(&vuln.id) {
+                    vuln.aliases = aliases.clone();
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn fetch_aliases(&self, vuln_id: &str) -> Result<Vec<String>> {
+        let url = format!("{}/{}", OSV_VULN_URL, vuln_id);
+
+        let resp = self
+            .http
+            .get(&url)
+            .send()
+            .await
+            .with_context(|| format!("Failed to fetch aliases for {}", vuln_id))?;
+
+        if !resp.status().is_success() {
+            debug!(
+                "Failed to fetch aliases for {}: HTTP {}",
+                vuln_id,
+                resp.status()
+            );
+            return Ok(Vec::new());
+        }
+
+        let detail: VulnDetail = resp
+            .json()
+            .await
+            .with_context(|| format!("Failed to parse vuln detail for {}", vuln_id))?;
+
+        Ok(detail.aliases.unwrap_or_default())
     }
 
     async fn query_chunk(&self, packages: &[SbomPackage]) -> Result<Vec<OsvResult>> {
@@ -159,6 +241,7 @@ impl OsvClient {
                             .map(|e| OsvVuln {
                                 id: e.id.clone(),
                                 _modified: e.modified.clone(),
+                                aliases: Vec::new(),
                             })
                             .collect()
                     })

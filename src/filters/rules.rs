@@ -86,6 +86,7 @@ mod tests {
             vulns: vec![OsvVuln {
                 id: vuln_id.into(),
                 _modified: "2024-01-01T00:00:00Z".into(),
+                aliases: vec![],
             }],
         }
     }
