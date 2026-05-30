@@ -67,15 +67,9 @@ pub struct VexDocument {
     statements: Vec<OpenVexStatement>,
 }
 
-pub fn generate_openvex(
-    statements: &[VexStatement],
-    author: &str,
-) -> VexDocument {
+pub fn generate_openvex(statements: &[VexStatement], author: &str) -> VexDocument {
     let uuid = Uuid::new_v4();
-    let doc_id = format!(
-        "https://openvex.dev/docs/bitvex/vex-{}",
-        uuid.as_simple()
-    );
+    let doc_id = format!("https://openvex.dev/docs/bitvex/vex-{}", uuid.as_simple());
 
     let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
 

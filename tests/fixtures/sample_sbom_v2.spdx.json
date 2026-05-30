@@ -2,21 +2,21 @@
     "SPDXID": "SPDXRef-DOCUMENT",
     "spdxVersion": "SPDX-2.3",
     "creationInfo": {
-        "created": "2024-01-15T10:30:00Z",
+        "created": "2024-06-15T10:30:00Z",
         "creators": ["Tool: bitbake"]
     },
-    "name": "test-image-spdx",
+    "name": "test-image-spdx-v2",
     "packages": [
         {
             "SPDXID": "SPDXRef-Package-openssl",
             "name": "openssl",
-            "versionInfo": "3.0.13",
-            "downloadLocation": "https://www.openssl.org/source/openssl-3.0.13.tar.gz",
+            "versionInfo": "3.0.14",
+            "downloadLocation": "https://www.openssl.org/source/openssl-3.0.14.tar.gz",
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
                     "referenceType": "purl",
-                    "referenceLocator": "pkg:generic/openssl@3.0.13"
+                    "referenceLocator": "pkg:generic/openssl@3.0.14"
                 }
             ]
         },
@@ -52,21 +52,28 @@
             "downloadLocation": "https://example.com/bt-fw"
         },
         {
-            "SPDXID": "SPDXRef-Package-wifi-driver",
-            "name": "wifi-driver",
-            "versionInfo": "2.1.0",
-            "downloadLocation": "https://example.com/wifi"
-        },
-        {
             "SPDXID": "SPDXRef-Package-glibc",
             "name": "glibc",
-            "versionInfo": "2.37",
-            "downloadLocation": "https://ftp.gnu.org/gnu/glibc/glibc-2.37.tar.xz",
+            "versionInfo": "2.38",
+            "downloadLocation": "https://ftp.gnu.org/gnu/glibc/glibc-2.38.tar.xz",
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
                     "referenceType": "purl",
-                    "referenceLocator": "pkg:generic/glibc@2.37"
+                    "referenceLocator": "pkg:generic/glibc@2.38"
+                }
+            ]
+        },
+        {
+            "SPDXID": "SPDXRef-Package-bash",
+            "name": "bash",
+            "versionInfo": "5.2.15",
+            "downloadLocation": "https://ftp.gnu.org/gnu/bash/bash-5.2.15.tar.gz",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:generic/bash@5.2.15"
                 }
             ]
         }

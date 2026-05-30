@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SbomPackage {
     pub _spdx_id: String,
     pub name: String,
@@ -107,10 +107,7 @@ mod tests {
 
         assert_eq!(pkgs[0].name, "openssl");
         assert_eq!(pkgs[0].version.as_deref(), Some("3.0.13"));
-        assert_eq!(
-            pkgs[0].purl.as_deref(),
-            Some("pkg:generic/openssl@3.0.13")
-        );
+        assert_eq!(pkgs[0].purl.as_deref(), Some("pkg:generic/openssl@3.0.13"));
 
         assert_eq!(pkgs[1].name, "curl");
         assert_eq!(pkgs[1].version.as_deref(), Some("8.5.0"));

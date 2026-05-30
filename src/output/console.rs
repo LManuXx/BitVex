@@ -40,14 +40,35 @@ pub fn print_summary(
     println!("╔══════════════════════════════════════════════════════╗");
     println!("║          BitVex - CRA Compliance Report             ║");
     println!("╠══════════════════════════════════════════════════════╣");
-    println!("║  Total packages analyzed:     {:<5}                  ║", total_packages);
-    println!("║  Native packages filtered:    {:<5}                  ║", native_filtered);
-    println!("║  Kernel drivers filtered:     {:<5}                  ║", kernel_filtered);
-    println!("║  DTS disabled filtered:       {:<5}                  ║", dts_filtered);
+    println!(
+        "║  Total packages analyzed:     {:<5}                  ║",
+        total_packages
+    );
+    println!(
+        "║  Native packages filtered:    {:<5}                  ║",
+        native_filtered
+    );
+    println!(
+        "║  Kernel drivers filtered:     {:<5}                  ║",
+        kernel_filtered
+    );
+    println!(
+        "║  DTS disabled filtered:       {:<5}                  ║",
+        dts_filtered
+    );
     println!("║  ─────────────────────────────────────              ║");
-    println!("║  CVEs marked not_affected:    {:<5}                  ║", not_affected_count);
-    println!("║  CVEs marked fixed:           {:<5}                  ║", fixed_count);
-    println!("║  Real CVEs to address:        {:<5}                  ║", real_cve_count);
+    println!(
+        "║  CVEs marked not_affected:    {:<5}                  ║",
+        not_affected_count
+    );
+    println!(
+        "║  CVEs marked fixed:           {:<5}                  ║",
+        fixed_count
+    );
+    println!(
+        "║  Real CVEs to address:        {:<5}                  ║",
+        real_cve_count
+    );
     println!("╚══════════════════════════════════════════════════════╝");
 
     let affected: Vec<&VexStatement> = statements

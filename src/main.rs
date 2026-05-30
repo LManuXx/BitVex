@@ -1,7 +1,8 @@
-use bitvex::cli;
+use bitvex::cli::{Args, Command};
 use bitvex::filters;
 use bitvex::osv;
 use bitvex::output;
+use bitvex::rules;
 use bitvex::sbom;
 use bitvex::vex;
 
@@ -9,11 +10,9 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use tracing::{info, warn};
 
-use cli::Args;
 use filters::device_tree::parse_device_tree;
 use filters::kernel_config::parse_kernel_config;
 use filters::native::filter_native_packages;
-use osv::OsvClient;
 use sbom::parse_spdx_sbom;
 use vex::{VexStatus, generate_openvex};
 
@@ -29,12 +28,85 @@ async fn main() -> Result<()> {
         )
         .init();
 
+    match args.command {
+        Some(Command::Diff { old, new, output }) => {
+            return cmd_diff(&old, &new, output.as_deref());
+        }
+        Some(Command::DownloadDb {
+            db_path,
+            ecosystems,
+            profile,
+            yes,
+        }) => {
+            return cmd_download_db(
+                db_path.as_deref(),
+                ecosystems.as_deref(),
+                profile.as_ref(),
+                yes,
+            )
+            .await;
+        }
+        None => {}
+    }
+
+    cmd_scan(&args).await
+}
+
+fn cmd_diff(
+    old: &std::path::Path,
+    new: &std::path::Path,
+    output: Option<&std::path::Path>,
+) -> Result<()> {
+    info!("Comparing SBOMs");
+    let diff = sbom::diff::diff_sboms(old, new)?;
+
+    sbom::diff::print_diff_summary(&diff);
+
+    if let Some(out_path) = output {
+        let json = serde_json::to_string_pretty(&diff)?;
+        std::fs::write(out_path, &json)
+            .with_context(|| format!("Failed to write diff: {}", out_path.display()))?;
+        info!("Diff written to {}", out_path.display());
+    }
+
+    Ok(())
+}
+
+async fn cmd_download_db(
+    db_path: Option<&std::path::Path>,
+    ecosystems: Option<&[String]>,
+    profile: Option<&bitvex::cli::DownloadProfile>,
+    yes: bool,
+) -> Result<()> {
+    let path = db_path
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(osv::db::default_db_path);
+
+    let eco_list = osv::db::resolve_ecosystems(ecosystems, profile);
+
+    osv::db::download_databases(&path, &eco_list, yes).await
+}
+
+async fn cmd_scan(args: &Args) -> Result<()> {
     info!("BitVex starting");
 
+    let sbom_path = args
+        .sbom
+        .as_ref()
+        .context("--sbom is required for scan mode")?;
+    let kernel_config_path = args
+        .kernel_config
+        .as_ref()
+        .context("--kernel-config is required for scan mode")?;
+    let device_tree_path = args
+        .device_tree
+        .as_ref()
+        .context("--device-tree is required for scan mode")?;
+
     // 1. Parse SBOM
-    info!("Parsing SBOM: {}", args.sbom.display());
-    let sbom_data = std::fs::read(&args.sbom)
-        .with_context(|| format!("Failed to read SBOM: {}", args.sbom.display()))?;
+    info!("Parsing SBOM: {}", sbom_path.display());
+    let sbom_data = std::fs::read(sbom_path)
+        .with_context(|| format!("Failed to read SBOM: {}", sbom_path.display()))?;
     let packages = parse_spdx_sbom(&sbom_data)?;
     info!("Found {} packages in SBOM", packages.len());
 
@@ -44,17 +116,21 @@ async fn main() -> Result<()> {
     }
 
     // 2. Parse kernel config
-    info!("Parsing kernel config: {}", args.kernel_config.display());
-    let kernel_config = parse_kernel_config(&args.kernel_config)?;
+    info!("Parsing kernel config: {}", kernel_config_path.display());
+    let kernel_config = parse_kernel_config(kernel_config_path)?;
 
     // 3. Parse device tree
-    info!("Parsing device tree: {}", args.device_tree.display());
-    let dts_nodes = parse_device_tree(&args.device_tree)?;
+    info!("Parsing device tree: {}", device_tree_path.display());
+    let dts_nodes = parse_device_tree(device_tree_path)?;
 
-    // 4. Pre-OSV filter: native packages
-    let osv_client = OsvClient::new()?;
+    // 4. Load rules if provided
+    let rules_config = if let Some(ref rules_path) = args.rules {
+        Some(rules::load_rules(rules_path)?)
+    } else {
+        None
+    };
 
-    // First, query all non-native packages against OSV
+    // 5. Pre-OSV filter: native packages
     let native_indices: Vec<usize> = packages
         .iter()
         .enumerate()
@@ -75,13 +151,50 @@ async fn main() -> Result<()> {
         native_indices.len()
     );
 
-    let osv_results = osv_client.query_batch(&non_native_packages).await?;
+    // 6. Download DB if requested and using offline mode
+    if args.offline && args.download_db {
+        let db_path = args
+            .db_path
+            .clone()
+            .unwrap_or_else(osv::db::default_db_path);
 
-    // 5. Apply hardware filters
+        let eco_list = osv::db::resolve_ecosystems(None, args.profile.as_ref());
+
+        osv::db::download_databases(&db_path, &eco_list, args.yes).await?;
+    }
+
+    // 7. Query OSV (online or offline)
+    let osv_results = if args.offline {
+        let db_path = args
+            .db_path
+            .clone()
+            .unwrap_or_else(osv::db::default_db_path);
+        let provider = osv::offline::OfflineOsvProvider::new(&db_path)?;
+        provider.query_batch(&non_native_packages)?
+    } else {
+        let client = osv::OsvClient::new()?;
+        client.query_batch(&non_native_packages).await?
+    };
+
+    // 8. Apply rules engine first (if provided)
+    let (rules_statements, rules_filtered_indices) = if let Some(ref config) = rules_config {
+        filters::rules::apply_rules(&osv_results, config)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+
+    // 9. Apply hardware filters on remaining
+    let remaining_after_rules: Vec<_> = osv_results
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !rules_filtered_indices.contains(i))
+        .map(|(_, r)| r.clone())
+        .collect();
+
     let (kernel_statements, kernel_filtered_local) =
-        filters::kernel_config::filter_by_kernel_config(&osv_results, &kernel_config);
+        filters::kernel_config::filter_by_kernel_config(&remaining_after_rules, &kernel_config);
 
-    let remaining_after_kernel: Vec<_> = osv_results
+    let remaining_after_kernel: Vec<_> = remaining_after_rules
         .iter()
         .enumerate()
         .filter(|(i, _)| !kernel_filtered_local.contains(i))
@@ -91,7 +204,7 @@ async fn main() -> Result<()> {
     let (dts_statements, dts_filtered_local) =
         filters::device_tree::filter_by_device_tree(&remaining_after_kernel, &dts_nodes);
 
-    // Build native statements (from native packages)
+    // 10. Build native statements
     let native_osv_results: Vec<_> = packages
         .iter()
         .enumerate()
@@ -104,14 +217,13 @@ async fn main() -> Result<()> {
 
     let (native_statements, _) = filter_native_packages(&native_osv_results);
 
-    // Remaining packages (not filtered by any rule) get status based on OSV results
-    let remaining_indices: Vec<usize> = osv_results
+    // 11. Remaining packages get affected status
+    let remaining_indices: Vec<usize> = remaining_after_rules
         .iter()
         .enumerate()
         .filter(|(i, _)| !kernel_filtered_local.contains(i))
-        .filter(|(i, _)| {
-            let pkg = &osv_results[*i].package;
-            let pkg_lower = pkg.name.to_lowercase();
+        .filter(|(_, r)| {
+            let pkg_lower = r.package.name.to_lowercase();
             let disabled_names: Vec<String> = dts_nodes
                 .iter()
                 .filter(|n| n.status == filters::device_tree::NodeStatus::Disabled)
@@ -127,12 +239,12 @@ async fn main() -> Result<()> {
 
     let mut all_statements = Vec::new();
     all_statements.extend(native_statements);
+    all_statements.extend(rules_statements);
     all_statements.extend(kernel_statements);
     all_statements.extend(dts_statements);
 
-    // Add remaining as affected or under_investigation
     for &i in &remaining_indices {
-        let result = &osv_results[i];
+        let result = &remaining_after_rules[i];
         for vuln in &result.vulns {
             let purl = result
                 .package
@@ -157,23 +269,25 @@ async fn main() -> Result<()> {
 
     info!("Total VEX statements: {}", all_statements.len());
 
-    // 6. Generate OpenVEX document
-    let vex_doc = generate_openvex(&all_statements, &args.author);
+    // 12. Generate OpenVEX document
+    let author = rules_config
+        .as_ref()
+        .and_then(|c| c.author.as_ref().map(|a| a.name.as_str()))
+        .unwrap_or(&args.author);
+
+    let vex_doc = generate_openvex(&all_statements, author);
     let vex_json = serde_json::to_string_pretty(&vex_doc)?;
 
     std::fs::write(&args.output, &vex_json)
         .with_context(|| format!("Failed to write output: {}", args.output.display()))?;
     info!("OpenVEX report written to: {}", args.output.display());
 
-    // 7. Print console summary
-    let kernel_filtered_total = kernel_filtered_local.len();
-    let dts_filtered_total = dts_filtered_local.len();
-
+    // 13. Print console summary
     output::print_summary(
         packages.len(),
         native_indices.len(),
-        kernel_filtered_total,
-        dts_filtered_total,
+        kernel_filtered_local.len(),
+        dts_filtered_local.len(),
         &all_statements,
     );
 

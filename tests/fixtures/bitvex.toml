@@ -1,0 +1,23 @@
+[author]
+name = "Test Company <security@testcompany.com>"
+
+[[rules]]
+name = "OpenSSL custom patch"
+cve = "CVE-2024-12345"
+package = "openssl"
+status = "not_affected"
+justification = "vulnerable_code_not_present"
+impact_statement = "Parcheado manualmente en nuestra build custom"
+
+[[rules]]
+name = "Ignore all glibc CVEs under investigation"
+package = "glibc"
+status = "under_investigation"
+
+[[rules]]
+name = "WiFi firmware disabled"
+cve_pattern = "CVE-2024-*"
+package = "linux-firmware"
+status = "not_affected"
+justification = "component_not_present"
+impact_statement = "WiFi deshabilitado en Device Tree del producto"
