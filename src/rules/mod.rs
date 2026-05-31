@@ -298,4 +298,67 @@ status = "under_investigation"
         ));
         assert!(rule_matches(&rule, "CVE-2024-0001", "curl", Some("8.1.2")));
     }
+
+    #[test]
+    fn test_load_empty_rules() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"
+[author]
+name = "Test Author"
+"#
+        )
+        .unwrap();
+
+        let config = load_rules(file.path()).unwrap();
+        assert_eq!(config.rules.len(), 0);
+        assert_eq!(config.author.as_ref().unwrap().name, "Test Author");
+    }
+
+    #[test]
+    fn test_rule_combined_cve_and_package() {
+        let rule = Rule {
+            name: "test".into(),
+            cve: Some("CVE-2024-1234".into()),
+            cve_pattern: None,
+            package: Some("openssl".into()),
+            version: Some("3.0.13".into()),
+            status: RuleStatus::NotAffected,
+            justification: Some("vulnerable_code_not_present".into()),
+            impact_statement: None,
+        };
+
+        // All conditions match
+        assert!(rule_matches(
+            &rule,
+            "CVE-2024-1234",
+            "openssl",
+            Some("3.0.13")
+        ));
+
+        // Wrong version
+        assert!(!rule_matches(
+            &rule,
+            "CVE-2024-1234",
+            "openssl",
+            Some("3.0.14")
+        ));
+
+        // Wrong package
+        assert!(!rule_matches(
+            &rule,
+            "CVE-2024-1234",
+            "curl",
+            Some("3.0.13")
+        ));
+
+        // Wrong CVE
+        assert!(!rule_matches(
+            &rule,
+            "CVE-2024-9999",
+            "openssl",
+            Some("3.0.13")
+        ));
+    }
 }

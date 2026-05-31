@@ -56,8 +56,9 @@ impl WatchState {
     }
 
     fn init_tables(&self) -> Result<()> {
-        self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS scans (
+        self.conn
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS scans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
@@ -83,8 +84,8 @@ impl WatchState {
             CREATE INDEX IF NOT EXISTS idx_cves_scan ON scan_cves(scan_id);
             CREATE INDEX IF NOT EXISTS idx_cves_vuln ON scan_cves(vuln_id);
             CREATE INDEX IF NOT EXISTS idx_scans_project ON scans(project);",
-        )
-        .context("Failed to create SQLite tables")?;
+            )
+            .context("Failed to create SQLite tables")?;
 
         Ok(())
     }
@@ -240,17 +241,16 @@ impl WatchState {
     }
 
     /// Detect new CVEs by comparing current scan with the previous one.
-    pub fn detect_new_cves(
-        &self,
-        project: &str,
-        current_scan_id: i64,
-    ) -> Result<Vec<CveRecord>> {
+    pub fn detect_new_cves(&self, project: &str, current_scan_id: i64) -> Result<Vec<CveRecord>> {
         // Get the previous scan (before current)
-        let prev_scan = self.conn.query_row(
-            "SELECT id FROM scans WHERE project = ?1 AND id < ?2 ORDER BY id DESC LIMIT 1",
-            params![project, current_scan_id],
-            |row| row.get::<_, i64>(0),
-        ).ok();
+        let prev_scan = self
+            .conn
+            .query_row(
+                "SELECT id FROM scans WHERE project = ?1 AND id < ?2 ORDER BY id DESC LIMIT 1",
+                params![project, current_scan_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .ok();
 
         let Some(prev_id) = prev_scan else {
             // First scan, all CVEs are "new"
@@ -348,7 +348,14 @@ mod tests {
 
         let scan_id = state.insert_scan("proj", 10, 2, 8).unwrap();
         state
-            .insert_cve(scan_id, "CVE-2024-0001", "openssl", Some("pkg:generic/openssl@3.0.13"), "affected", Some(0.05))
+            .insert_cve(
+                scan_id,
+                "CVE-2024-0001",
+                "openssl",
+                Some("pkg:generic/openssl@3.0.13"),
+                "affected",
+                Some(0.05),
+            )
             .unwrap();
         state
             .insert_cve(scan_id, "CVE-2024-0002", "curl", None, "not_affected", None)
@@ -368,12 +375,18 @@ mod tests {
 
         // First scan
         let scan1 = state.insert_scan("proj", 10, 1, 9).unwrap();
-        state.insert_cve(scan1, "CVE-2024-0001", "openssl", None, "affected", None).unwrap();
+        state
+            .insert_cve(scan1, "CVE-2024-0001", "openssl", None, "affected", None)
+            .unwrap();
 
         // Second scan with new CVE
         let scan2 = state.insert_scan("proj", 10, 2, 8).unwrap();
-        state.insert_cve(scan2, "CVE-2024-0001", "openssl", None, "affected", None).unwrap();
-        state.insert_cve(scan2, "CVE-2024-0002", "curl", None, "affected", None).unwrap();
+        state
+            .insert_cve(scan2, "CVE-2024-0001", "openssl", None, "affected", None)
+            .unwrap();
+        state
+            .insert_cve(scan2, "CVE-2024-0002", "curl", None, "affected", None)
+            .unwrap();
 
         let new_cves = state.detect_new_cves("proj", scan2).unwrap();
         assert_eq!(new_cves.len(), 1);

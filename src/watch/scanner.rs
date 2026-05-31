@@ -261,7 +261,9 @@ pub async fn scan_project(
 
     info!(
         "  Scan complete: {} affected, {} not affected, {} total packages",
-        affected, not_affected, packages.len()
+        affected,
+        not_affected,
+        packages.len()
     );
 
     Ok(ScanResult {

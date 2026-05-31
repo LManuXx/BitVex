@@ -125,10 +125,7 @@ pub struct VexDocument {
 /// let json = serde_json::to_string_pretty(&doc).unwrap();
 /// assert!(json.contains("CVE-2024-12345"));
 /// ```
-pub fn generate_openvex(
-    statements: &[VexStatement],
-    author: &str,
-) -> VexDocument {
+pub fn generate_openvex(statements: &[VexStatement], author: &str) -> VexDocument {
     let uuid = Uuid::new_v4();
     let doc_id = format!("https://openvex.dev/docs/bitvex/vex-{}", uuid.as_simple());
 

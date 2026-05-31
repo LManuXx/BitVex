@@ -273,7 +273,10 @@ mod tests {
         let old = dir.path().join("old.vex.json");
         let new = dir.path().join("new.vex.json");
 
-        write_vex(&old, r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#);
+        write_vex(
+            &old,
+            r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#,
+        );
         write_vex(
             &new,
             r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"},{"vulnerability":{"name":"CVE-2024-0002"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#,
@@ -295,7 +298,10 @@ mod tests {
             &old,
             r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"},{"vulnerability":{"name":"CVE-2024-0002"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#,
         );
-        write_vex(&new, r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#);
+        write_vex(
+            &new,
+            r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#,
+        );
 
         let delta = compare_vex(&old, &new).unwrap();
         assert_eq!(delta.new_cves.len(), 0);
@@ -309,8 +315,14 @@ mod tests {
         let old = dir.path().join("old.vex.json");
         let new = dir.path().join("new.vex.json");
 
-        write_vex(&old, r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#);
-        write_vex(&new, r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"fixed"}"#);
+        write_vex(
+            &old,
+            r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"affected"}"#,
+        );
+        write_vex(
+            &new,
+            r#"{"vulnerability":{"name":"CVE-2024-0001"},"products":[{"@id":"pkg:a@1.0"}],"status":"fixed"}"#,
+        );
 
         let delta = compare_vex(&old, &new).unwrap();
         assert_eq!(delta.changed_status.len(), 1);

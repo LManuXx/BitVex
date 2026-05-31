@@ -117,10 +117,7 @@ impl EpssClient {
             anyhow::bail!("EPSS API returned {status}: {body}");
         }
 
-        let epss_resp: EpssResponse = resp
-            .json()
-            .await
-            .context("Failed to parse EPSS response")?;
+        let epss_resp: EpssResponse = resp.json().await.context("Failed to parse EPSS response")?;
 
         let scores: Vec<EpssScore> = epss_resp
             .data
@@ -141,5 +138,41 @@ impl EpssClient {
             .collect();
 
         Ok(scores)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_cve_id() {
+        assert!(is_cve_id("CVE-2024-12345"));
+        assert!(is_cve_id("CVE-2021-44228"));
+        assert!(!is_cve_id("GHSA-xxx-yyy"));
+        assert!(!is_cve_id("OSV-2022-312"));
+        assert!(!is_cve_id("RUSTSEC-2024-0001"));
+        assert!(!is_cve_id(""));
+    }
+
+    #[test]
+    fn test_epss_client_creation() {
+        let client = EpssClient::new();
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_epss_response_parsing() {
+        let json = r#"{
+            "data": [
+                {"cve": "CVE-2024-12345", "epss": "0.95", "percentile": "0.99"},
+                {"cve": "CVE-2021-44228", "epss": "0.05", "percentile": "0.50"}
+            ]
+        }"#;
+
+        let resp: EpssResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.data.len(), 2);
+        assert_eq!(resp.data[0].cve, "CVE-2024-12345");
+        assert_eq!(resp.data[0].epss, "0.95");
     }
 }

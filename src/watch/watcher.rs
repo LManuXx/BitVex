@@ -37,15 +37,12 @@ pub async fn run_watch(config: &WatchConfig, state: &WatchState, author: &str) -
     }
 
     // Do initial scan for all projects
-    info!("Running initial scan for {} projects...", config.projects.len());
+    info!(
+        "Running initial scan for {} projects...",
+        config.projects.len()
+    );
     for project in &config.projects {
-        let result = scanner::scan_project(
-            project,
-            state,
-            author,
-            output_dir.as_deref(),
-        )
-        .await;
+        let result = scanner::scan_project(project, state, author, output_dir.as_deref()).await;
 
         match result {
             Ok(r) => {
@@ -66,8 +63,8 @@ pub async fn run_watch(config: &WatchConfig, state: &WatchState, author: &str) -
 
     // Set up file watcher
     let (tx, rx) = mpsc::channel();
-    let mut debouncer = new_debouncer(debounce_duration, tx)
-        .context("Failed to create file watcher")?;
+    let mut debouncer =
+        new_debouncer(debounce_duration, tx).context("Failed to create file watcher")?;
 
     // Watch all files
     let mut watched_paths = HashSet::new();
@@ -102,10 +99,7 @@ pub async fn run_watch(config: &WatchConfig, state: &WatchState, author: &str) -
     loop {
         match rx.recv() {
             Ok(Ok(events)) => {
-                let changed_files: Vec<PathBuf> = events
-                    .iter()
-                    .map(|e| e.path.clone())
-                    .collect();
+                let changed_files: Vec<PathBuf> = events.iter().map(|e| e.path.clone()).collect();
 
                 if changed_files.is_empty() {
                     continue;
@@ -138,13 +132,8 @@ pub async fn run_watch(config: &WatchConfig, state: &WatchState, author: &str) -
                     let project = &config.projects[idx];
                     info!("Re-scanning '{}'...", project.name);
 
-                    let result = scanner::scan_project(
-                        project,
-                        state,
-                        author,
-                        output_dir.as_deref(),
-                    )
-                    .await;
+                    let result =
+                        scanner::scan_project(project, state, author, output_dir.as_deref()).await;
 
                     match result {
                         Ok(r) => {
@@ -154,22 +143,13 @@ pub async fn run_watch(config: &WatchConfig, state: &WatchState, author: &str) -
 
                             if !new_cves.is_empty() {
                                 println!();
-                                println!(
-                                    "⚠  NEW CVEs in '{}':",
-                                    project.name
-                                );
+                                println!("⚠  NEW CVEs in '{}':", project.name);
                                 for cve in &new_cves {
-                                    println!(
-                                        "   {} affects {}",
-                                        cve.vuln_id, cve.package
-                                    );
+                                    println!("   {} affects {}", cve.vuln_id, cve.package);
                                 }
                                 println!();
                             } else if r.affected > 0 {
-                                println!(
-                                    "⚠  '{}': {} CVEs (no new)",
-                                    project.name, r.affected
-                                );
+                                println!("⚠  '{}': {} CVEs (no new)", project.name, r.affected);
                             } else {
                                 println!("✓  '{}': clean", project.name);
                             }

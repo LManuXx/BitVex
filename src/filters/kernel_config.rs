@@ -51,12 +51,46 @@ fn known_config_mappings() -> HashMap<&'static str, Vec<&'static str>> {
 /// Packages that are purely userspace and should never be filtered by kernel config.
 fn is_userspace_package(name: &str) -> bool {
     let prefixes = [
-        "glibc", "bash", "coreutils", "dbus", "systemd", "python", "ruby",
-        "perl", "php", "node", "npm", "vim", "nano", "gcc", "binutils",
-        "make", "cmake", "autoconf", "busybox", "shadow", "util-linux",
-        "curl", "wget", "openssl", "openssh", "zlib", "libpng", "libxml2",
-        "sqlite", "icu", "mesa", "wayland", "gstreamer", "opkg", "dnsmasq",
-        "avahi", "networkmanager", "bluez", "wpa-supplicant", "iptables",
+        "glibc",
+        "bash",
+        "coreutils",
+        "dbus",
+        "systemd",
+        "python",
+        "ruby",
+        "perl",
+        "php",
+        "node",
+        "npm",
+        "vim",
+        "nano",
+        "gcc",
+        "binutils",
+        "make",
+        "cmake",
+        "autoconf",
+        "busybox",
+        "shadow",
+        "util-linux",
+        "curl",
+        "wget",
+        "openssl",
+        "openssh",
+        "zlib",
+        "libpng",
+        "libxml2",
+        "sqlite",
+        "icu",
+        "mesa",
+        "wayland",
+        "gstreamer",
+        "opkg",
+        "dnsmasq",
+        "avahi",
+        "networkmanager",
+        "bluez",
+        "wpa-supplicant",
+        "iptables",
     ];
     let lower = name.to_lowercase();
     prefixes.iter().any(|p| lower.starts_with(p))
@@ -233,5 +267,55 @@ mod tests {
 
         let keys = extract_config_keys_from_package("python3");
         assert!(keys.is_empty());
+    }
+
+    #[test]
+    fn test_config_string_values_ignored() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        std::io::Write::write_all(
+            &mut file,
+            b"CONFIG_CMDLINE=\"console=ttyAMA0\"\nCONFIG_VALUE=\"\"\nCONFIG_NORMAL=y\n",
+        )
+        .unwrap();
+
+        let config = parse_kernel_config(file.path()).unwrap();
+        assert_eq!(config.get("NORMAL"), Some(&ConfigValue::BuiltIn));
+        assert!(config.get("CMDLINE").is_none());
+        assert!(config.get("VALUE").is_none());
+    }
+
+    #[test]
+    fn test_config_explicit_n() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        std::io::Write::write_all(&mut file, b"CONFIG_DISABLED=n\n").unwrap();
+
+        let config = parse_kernel_config(file.path()).unwrap();
+        assert_eq!(config.get("DISABLED"), Some(&ConfigValue::Disabled));
+    }
+
+    #[test]
+    fn test_filter_with_disabled_config() {
+        let mut config = std::collections::HashMap::new();
+        config.insert("BT".to_string(), ConfigValue::NotSet);
+        config.insert("USB_STORAGE".to_string(), ConfigValue::BuiltIn);
+
+        let results = vec![OsvResult {
+            package: crate::sbom::SbomPackage {
+                _spdx_id: "SPDXRef-1".into(),
+                name: "bluez5".into(),
+                version: Some("5.68".into()),
+                purl: Some("pkg:generic/bluez5@5.68".into()),
+            },
+            vulns: vec![OsvVuln {
+                id: "CVE-2024-0001".into(),
+                _modified: "2024-01-01T00:00:00Z".into(),
+                aliases: vec![],
+            }],
+        }];
+
+        let (statements, indices) = filter_by_kernel_config(&results, &config);
+        assert_eq!(indices.len(), 1);
+        assert_eq!(statements.len(), 1);
+        assert_eq!(statements[0].status, VexStatus::NotAffected);
     }
 }

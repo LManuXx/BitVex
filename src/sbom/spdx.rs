@@ -156,10 +156,7 @@ mod tests {
 
         assert_eq!(pkgs[0].name, "openssl");
         assert_eq!(pkgs[0].version.as_deref(), Some("3.0.13"));
-        assert_eq!(
-            pkgs[0].purl.as_deref(),
-            Some("pkg:generic/openssl@3.0.13")
-        );
+        assert_eq!(pkgs[0].purl.as_deref(), Some("pkg:generic/openssl@3.0.13"));
 
         assert_eq!(pkgs[1].name, "curl");
         assert_eq!(pkgs[1].version.as_deref(), Some("8.5.0"));
@@ -171,5 +168,77 @@ mod tests {
         let json = r#"{"SPDXID": "SPDXRef-DOCUMENT"}"#;
         let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
         assert!(pkgs.is_empty());
+    }
+
+    #[test]
+    fn test_parse_spdx_version_22() {
+        let json = r#"{
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "spdxVersion": "SPDX-2.2",
+            "packages": [{
+                "SPDXID": "SPDXRef-Package-test",
+                "name": "test-pkg",
+                "versionInfo": "1.0.0"
+            }]
+        }"#;
+
+        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].name, "test-pkg");
+    }
+
+    #[test]
+    fn test_parse_multiple_packages() {
+        let json = r#"{
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "packages": [
+                {"SPDXID": "SPDXRef-1", "name": "pkg-a", "versionInfo": "1.0"},
+                {"SPDXID": "SPDXRef-2", "name": "pkg-b", "versionInfo": "2.0"},
+                {"SPDXID": "SPDXRef-3", "name": "pkg-c", "versionInfo": "3.0"},
+                {"SPDXID": "SPDXRef-4", "name": "pkg-d", "versionInfo": "4.0"},
+                {"SPDXID": "SPDXRef-5", "name": "pkg-e", "versionInfo": "5.0"}
+            ]
+        }"#;
+
+        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        assert_eq!(pkgs.len(), 5);
+        assert_eq!(pkgs[0].name, "pkg-a");
+        assert_eq!(pkgs[4].name, "pkg-e");
+    }
+
+    #[test]
+    fn test_parse_package_with_npm_purl() {
+        let json = r#"{
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "packages": [{
+                "SPDXID": "SPDXRef-Package-axios",
+                "name": "axios",
+                "versionInfo": "0.21.0",
+                "externalRefs": [{
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:npm/axios@0.21.0"
+                }]
+            }]
+        }"#;
+
+        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        assert_eq!(pkgs[0].purl.as_deref(), Some("pkg:npm/axios@0.21.0"));
+    }
+
+    #[test]
+    fn test_parse_package_without_version() {
+        let json = r#"{
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "packages": [{
+                "SPDXID": "SPDXRef-Package-test",
+                "name": "test-pkg"
+            }]
+        }"#;
+
+        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        assert_eq!(pkgs[0].name, "test-pkg");
+        assert!(pkgs[0].version.is_none());
+        assert!(pkgs[0].purl.is_none());
     }
 }

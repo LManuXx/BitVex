@@ -116,15 +116,12 @@ async fn cmd_download_epss_db(db_path: Option<&std::path::Path>, yes: bool) -> R
 async fn cmd_watch(config_path: &std::path::Path) -> Result<()> {
     let config = watch::config::load_watch_config(&config_path.to_path_buf())?;
 
-    let db_path = config
-        .db_path
-        .clone()
-        .unwrap_or_else(|| {
-            dirs::cache_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-                .join("bitvex")
-                .join("watch-state.db")
-        });
+    let db_path = config.db_path.clone().unwrap_or_else(|| {
+        dirs::cache_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("bitvex")
+            .join("watch-state.db")
+    });
 
     let state = watch::WatchState::new(&db_path)?;
 
@@ -132,14 +129,12 @@ async fn cmd_watch(config_path: &std::path::Path) -> Result<()> {
 }
 
 fn cmd_status(project: Option<&str>, db_path: Option<&std::path::Path>) -> Result<()> {
-    let path = db_path
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| {
-            dirs::cache_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-                .join("bitvex")
-                .join("watch-state.db")
-        });
+    let path = db_path.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+        dirs::cache_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("bitvex")
+            .join("watch-state.db")
+    });
 
     if !path.exists() {
         println!("No watch database found at {}", path.display());
@@ -224,10 +219,7 @@ fn cmd_status(project: Option<&str>, db_path: Option<&std::path::Path>) -> Resul
         println!("╔══════════════════════════════════════════════════════════╗");
         println!("║          BitVex - Project Status                        ║");
         println!("╠══════════════════════════════════════════════════════════╣");
-        println!(
-            "║  Monitored projects: {:<36} ║",
-            projects.len()
-        );
+        println!("║  Monitored projects: {:<36} ║", projects.len());
         println!("╚══════════════════════════════════════════════════════════╝");
         println!();
         let table = Table::new(rows).to_string();

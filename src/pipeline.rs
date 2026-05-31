@@ -296,15 +296,12 @@ pub async fn run_scan(args: &Args) -> Result<()> {
                 .clone()
                 .unwrap_or_else(|| format!("pkg:generic/{}", result.package.name));
 
-            let epss_score = epss_scores
-                .iter()
-                .find(|e| e.cve == vuln.id)
-                .or_else(|| {
-                    vuln.aliases
-                        .iter()
-                        .find(|a| a.starts_with("CVE-"))
-                        .and_then(|cve| epss_scores.iter().find(|e| &e.cve == cve))
-                });
+            let epss_score = epss_scores.iter().find(|e| e.cve == vuln.id).or_else(|| {
+                vuln.aliases
+                    .iter()
+                    .find(|a| a.starts_with("CVE-"))
+                    .and_then(|cve| epss_scores.iter().find(|e| &e.cve == cve))
+            });
             let is_low_priority = epss_score
                 .map(|e| e.epss < args.epss_threshold)
                 .unwrap_or(false);

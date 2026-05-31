@@ -325,4 +325,98 @@ mod tests {
                 .all(|n| n.compatible.as_deref() != Some("some,device"))
         );
     }
+
+    #[test]
+    fn test_parse_dts_mixed_status() {
+        let dts = r#"
+/ {
+    model = "Test Board";
+
+    ethernet@1000 {
+        compatible = "smsc,lan91c111";
+        status = "okay";
+    };
+
+    wifi@2000 {
+        compatible = "brcm,bcm4329-wifi";
+        status = "disabled";
+    };
+
+    bluetooth@3000 {
+        compatible = "brcm,bcm4329-bt";
+        status = "disabled";
+    };
+
+    gpu@4000 {
+        compatible = "arm,mali-400";
+        status = "okay";
+    };
+};
+"#;
+        let nodes = parse_device_tree_content(dts).unwrap();
+        let enabled: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.status == NodeStatus::Enabled)
+            .collect();
+        let disabled: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.status == NodeStatus::Disabled)
+            .collect();
+
+        assert_eq!(enabled.len(), 2);
+        assert_eq!(disabled.len(), 2);
+    }
+
+    #[test]
+    fn test_filter_by_device_tree() {
+        use crate::osv::{OsvResult, OsvVuln};
+        use crate::sbom::SbomPackage;
+
+        let dts_nodes = vec![
+            DtsNode {
+                _path: "/wifi".into(),
+                status: NodeStatus::Disabled,
+                compatible: Some("brcm,bcm4329-wifi".into()),
+            },
+            DtsNode {
+                _path: "/ethernet".into(),
+                status: NodeStatus::Enabled,
+                compatible: Some("smsc,lan91c111".into()),
+            },
+        ];
+
+        let results = vec![
+            OsvResult {
+                package: SbomPackage {
+                    _spdx_id: "SPDXRef-1".into(),
+                    name: "brcm,bcm4329-wifi".into(),
+                    version: Some("1.0".into()),
+                    purl: Some("pkg:generic/brcm,bcm4329-wifi@1.0".into()),
+                },
+                vulns: vec![OsvVuln {
+                    id: "CVE-2024-0001".into(),
+                    _modified: "2024-01-01T00:00:00Z".into(),
+                    aliases: vec![],
+                }],
+            },
+            OsvResult {
+                package: SbomPackage {
+                    _spdx_id: "SPDXRef-2".into(),
+                    name: "curl".into(),
+                    version: Some("8.5.0".into()),
+                    purl: Some("pkg:generic/curl@8.5.0".into()),
+                },
+                vulns: vec![OsvVuln {
+                    id: "CVE-2024-0002".into(),
+                    _modified: "2024-01-01T00:00:00Z".into(),
+                    aliases: vec![],
+                }],
+            },
+        ];
+
+        let (statements, indices) = filter_by_device_tree(&results, &dts_nodes);
+        assert_eq!(indices.len(), 1);
+        assert_eq!(statements.len(), 1);
+        assert_eq!(statements[0].vulnerability_name, "CVE-2024-0001");
+    }
 }

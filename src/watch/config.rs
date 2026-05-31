@@ -77,10 +77,14 @@ pub fn load_watch_config(path: &PathBuf) -> Result<WatchConfig> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read watch config: {}", path.display()))?;
 
-    let config: WatchConfig =
-        toml::from_str(&content).with_context(|| format!("Failed to parse watch config: {}", path.display()))?;
+    let config: WatchConfig = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse watch config: {}", path.display()))?;
 
-    info!("Loaded {} projects from {}", config.projects.len(), path.display());
+    info!(
+        "Loaded {} projects from {}",
+        config.projects.len(),
+        path.display()
+    );
 
     for project in &config.projects {
         info!(
