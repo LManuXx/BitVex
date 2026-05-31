@@ -4,25 +4,8 @@
 //! (v2.2 and v2.3) and extracts package information for vulnerability analysis.
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::debug;
-
-/// A package extracted from an SPDX SBOM document.
-///
-/// Represents a single software package with its identifying information.
-/// The `purl` (Package URL) is optional because not all SPDX documents
-/// include external references.
-#[derive(Debug, Clone, Serialize)]
-pub struct SbomPackage {
-    /// SPDX identifier (e.g., "SPDXRef-Package-openssl").
-    pub _spdx_id: String,
-    /// Package name (e.g., "openssl", "curl", "glibc").
-    pub name: String,
-    /// Package version (e.g., "3.0.13"). May be absent.
-    pub version: Option<String>,
-    /// Package URL (e.g., "pkg:generic/openssl@3.0.13"). May be absent.
-    pub purl: Option<String>,
-}
 
 #[derive(Debug, Deserialize)]
 struct SpdxDocument {
@@ -65,7 +48,7 @@ struct ExternalRef {
 ///
 /// # Returns
 ///
-/// A vector of [`SbomPackage`] structs, one for each package in the document.
+/// A vector of [`crate::sbom::SbomPackage`] structs, one for each package in the document.
 ///
 /// # Errors
 ///

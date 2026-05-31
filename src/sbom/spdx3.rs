@@ -59,7 +59,7 @@ struct ExternalIdentifier {
 ///
 /// # Returns
 ///
-/// A vector of [`SbomPackage`] structs, one for each Package element.
+/// A vector of [`crate::sbom::SbomPackage`] structs, one for each Package element.
 ///
 /// # Errors
 ///
