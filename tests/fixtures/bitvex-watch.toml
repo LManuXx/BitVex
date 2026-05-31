@@ -1,0 +1,27 @@
+# BitVex Watch Mode Configuration
+# Monitors multiple Yocto projects for CVE changes
+
+debounce_secs = 5
+output_dir = "./bitvex-reports"
+
+# Uncomment to use a custom database path
+# db_path = "~/.cache/bitvex/watch-state.db"
+
+# Project 1: iMX8MP EVK
+[[projects]]
+name = "iMX8MP EVK"
+sbom = "tests/fixtures/imx8mp-evk.spdx.json"
+rules = "tests/fixtures/bitvex.toml"
+author = "Test Company <test@example.com>"
+
+[[projects.configs]]
+type = "kernel"
+path = "tests/fixtures/imx_v8_defconfig"
+
+[[projects.device_trees]]
+path = "tests/fixtures/imx8mp-evk.dts"
+
+# Project 2: Simple test (no kernel/dts)
+[[projects]]
+name = "Simple Test"
+sbom = "tests/fixtures/realistic-test.spdx.json"

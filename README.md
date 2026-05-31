@@ -215,6 +215,81 @@ BitVex automatically detects compiled Device Tree binaries and decompiles them:
 bitvex --sbom ... --device-tree board.dtb
 ```
 
+### Watch Mode
+
+BitVex can continuously monitor your builds for new vulnerabilities. It watches SBOMs, kernel configs, and device trees for changes, automatically re-scans, and tracks CVE lifecycle in a local SQLite database.
+
+```bash
+# Start watching (monitors files for changes)
+bitvex watch --config bitvex-watch.toml
+
+# Check status of monitored projects
+bitvex status
+
+# View details for a specific project
+bitvex status --project "iMX8MP EVK"
+```
+
+#### Watch Configuration (`bitvex-watch.toml`)
+
+```toml
+debounce_secs = 5
+output_dir = "./bitvex-reports"
+
+[[projects]]
+name = "iMX8MP EVK"
+sbom = "build/imx8mp.spdx.json"
+rules = "bitvex.toml"
+author = "Mi Empresa <security@empresa.com>"
+
+[[projects.configs]]
+type = "kernel"
+path = "build/.config"
+
+[[projects.configs]]
+type = "uboot"
+path = "build/u-boot/.config"
+
+[[projects.device_trees]]
+path = "build/board.dts"
+
+# Multiple projects supported
+[[projects]]
+name = "Raspberry Pi 4"
+sbom = "build/rpi4.spdx.json"
+
+[[projects.configs]]
+type = "kernel"
+path = "build/rpi4-.config"
+
+[[projects.device_trees]]
+path = "build/bcm2711.dts"
+```
+
+**How it works:**
+1. Initial scan of all projects on startup
+2. Watches files using inotify (Linux) — near-zero CPU when idle
+3. Debounced re-scan (5s default) when files change
+4. Compares with previous scan in SQLite to detect new CVEs
+5. Saves reports to `output_dir` with timestamps
+6. `bitvex status` shows last scan results for all projects
+
+**Status output:**
+```
+╔══════════════════════════════════════════════════════════╗
+║          BitVex - Project Status                        ║
+╠══════════════════════════════════════════════════════════╣
+║  Monitored projects: 2                                  ║
+╚══════════════════════════════════════════════════════════╝
+
++------------------+---------------------+----------+---------+
+| Project          | Last Scan           | Affected | Status  |
++------------------+---------------------+----------+---------+
+| iMX8MP EVK       | 2024-06-30T10:30:00 | 4        | ⚠ warn  |
+| Raspberry Pi 4   | 2024-06-30T10:35:00 | 0        | ✓ clean |
++------------------+---------------------+----------+---------+
+```
+
 ---
 
 ## Getting Started
@@ -335,6 +410,23 @@ bitvex delta --old <PATH> --new <PATH> [--output <PATH>]
 ```bash
 bitvex download-db [--profile <PROFILE>] [--ecosystems <LIST>] [-y]
 bitvex download-epss-db [--db-path <PATH>] [-y]
+```
+
+### Watch Mode
+
+```bash
+bitvex watch --config <PATH>
+```
+
+```
+Options:
+  -c, --config <PATH>   Path to bitvex-watch.toml [default: bitvex-watch.toml]
+```
+
+### Project Status
+
+```bash
+bitvex status [--project <NAME>] [--db-path <PATH>]
 ```
 
 ---
@@ -459,9 +551,15 @@ src/
 ├── vex/
 │   ├── openvex.rs       OpenVEX v0.2.0 generator
 │   └── delta.rs         VEX delta comparison
-└── output/
-    ├── console.rs       Console summary formatter (with progress bars)
-    └── sarif.rs         SARIF 2.1.0 generator
+├── output/
+│   ├── console.rs       Console summary formatter (with progress bars)
+│   └── sarif.rs         SARIF 2.1.0 generator
+└── watch/
+    ├── mod.rs           Watch module re-exports
+    ├── config.rs        bitvex-watch.toml parser
+    ├── state.rs         SQLite state management (CVE lifecycle tracking)
+    ├── scanner.rs       Scan execution wrapper for watch mode
+    └── watcher.rs       File watcher with inotify + debouncing
 ```
 
 ---
@@ -470,7 +568,7 @@ src/
 
 ```bash
 cargo build              # Compile
-cargo test               # Run 48 tests (37 unit + 11 integration)
+cargo test               # Run 59 tests (44 unit + 11 integration + 4 doctest)
 cargo clippy             # Lint (0 warnings)
 cargo fmt                # Format
 ```

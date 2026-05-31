@@ -225,6 +225,29 @@ pub enum Command {
         #[arg(long, short)]
         yes: bool,
     },
+
+    /// Watch for file changes and continuously scan for vulnerabilities.
+    ///
+    /// Monitors SBOMs, kernel configs, and device trees for changes.
+    /// Automatically re-scans when files are modified.
+    Watch {
+        /// Path to bitvex-watch.toml configuration file.
+        #[arg(long, short, value_name = "PATH", default_value = "bitvex-watch.toml")]
+        config: PathBuf,
+    },
+
+    /// Show status of monitored projects.
+    ///
+    /// Displays the last scan results for all projects in the SQLite database.
+    Status {
+        /// Show details for a specific project.
+        #[arg(long)]
+        project: Option<String>,
+
+        /// Path to the SQLite database.
+        #[arg(long = "db-path", value_name = "PATH")]
+        db_path: Option<PathBuf>,
+    },
 }
 
 /// Download profile for OSV database.
