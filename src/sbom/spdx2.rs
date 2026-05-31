@@ -1,4 +1,4 @@
-//! SPDX JSON SBOM parser.
+//! SPDX 2.2/2.3 JSON SBOM parser.
 //!
 //! Parses Software Bill of Materials (SBOM) documents in SPDX JSON format
 //! (v2.2 and v2.3) and extracts package information for vulnerability analysis.
@@ -54,7 +54,7 @@ struct ExternalRef {
     reference_locator: String,
 }
 
-/// Parse an SPDX JSON document and extract packages.
+/// Parse an SPDX 2.2/2.3 JSON document and extract packages.
 ///
 /// Reads an SPDX JSON document (v2.2 or v2.3) and extracts all packages
 /// with their names, versions, and Package URLs (if available).
@@ -70,28 +70,9 @@ struct ExternalRef {
 /// # Errors
 ///
 /// Returns an error if the JSON is malformed or required fields are missing.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvex::sbom::parse_spdx_sbom;
-///
-/// let json = r#"{
-///     "SPDXID": "SPDXRef-DOCUMENT",
-///     "packages": [{
-///         "SPDXID": "SPDXRef-Package-openssl",
-///         "name": "openssl",
-///         "versionInfo": "3.0.13"
-///     }]
-/// }"#;
-///
-/// let packages = parse_spdx_sbom(json.as_bytes()).unwrap();
-/// assert_eq!(packages[0].name, "openssl");
-/// assert_eq!(packages[0].version.as_deref(), Some("3.0.13"));
-/// ```
-pub fn parse_spdx_sbom(data: &[u8]) -> Result<Vec<SbomPackage>> {
+pub fn parse_spdx2(data: &[u8]) -> Result<Vec<crate::sbom::SbomPackage>> {
     let doc: SpdxDocument =
-        serde_json::from_slice(data).context("Failed to parse SPDX JSON document")?;
+        serde_json::from_slice(data).context("Failed to parse SPDX 2.x JSON document")?;
 
     let packages = doc.packages.unwrap_or_default();
     let mut result = Vec::with_capacity(packages.len());
@@ -107,7 +88,7 @@ pub fn parse_spdx_sbom(data: &[u8]) -> Result<Vec<SbomPackage>> {
             })
             .map(|r| r.reference_locator.clone());
 
-        let sbom_pkg = SbomPackage {
+        let sbom_pkg = crate::sbom::SbomPackage {
             _spdx_id: pkg.spdx_id,
             name: pkg.name,
             version: pkg.version_info,
@@ -151,7 +132,7 @@ mod tests {
             ]
         }"#;
 
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert_eq!(pkgs.len(), 2);
 
         assert_eq!(pkgs[0].name, "openssl");
@@ -166,7 +147,7 @@ mod tests {
     #[test]
     fn test_parse_no_packages() {
         let json = r#"{"SPDXID": "SPDXRef-DOCUMENT"}"#;
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert!(pkgs.is_empty());
     }
 
@@ -182,7 +163,7 @@ mod tests {
             }]
         }"#;
 
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert_eq!(pkgs.len(), 1);
         assert_eq!(pkgs[0].name, "test-pkg");
     }
@@ -200,7 +181,7 @@ mod tests {
             ]
         }"#;
 
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert_eq!(pkgs.len(), 5);
         assert_eq!(pkgs[0].name, "pkg-a");
         assert_eq!(pkgs[4].name, "pkg-e");
@@ -222,7 +203,7 @@ mod tests {
             }]
         }"#;
 
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert_eq!(pkgs[0].purl.as_deref(), Some("pkg:npm/axios@0.21.0"));
     }
 
@@ -236,7 +217,7 @@ mod tests {
             }]
         }"#;
 
-        let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+        let pkgs = parse_spdx2(json.as_bytes()).unwrap();
         assert_eq!(pkgs[0].name, "test-pkg");
         assert!(pkgs[0].version.is_none());
         assert!(pkgs[0].purl.is_none());

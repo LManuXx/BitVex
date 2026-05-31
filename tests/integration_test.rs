@@ -590,3 +590,95 @@ fn test_rules_filter_with_osv_results() {
     assert_eq!(statements[0].status, VexStatus::NotAffected);
     assert_eq!(filtered.len(), 1);
 }
+
+// ============================================================================
+// SPDX 3.0 tests
+// ============================================================================
+
+#[test]
+fn test_spdx30_parsing() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let data = std::fs::read(fixtures.join("sample_spdx30.spdx.json")).unwrap();
+    let packages = parse_spdx_sbom(&data).unwrap();
+
+    // Should parse 10 Package elements (File and Relationship are skipped)
+    assert_eq!(packages.len(), 10);
+
+    // Verify specific packages
+    let names: Vec<&str> = packages.iter().map(|p| p.name.as_str()).collect();
+    assert!(names.contains(&"openssl"));
+    assert!(names.contains(&"curl"));
+    assert!(names.contains(&"glibc"));
+    assert!(names.contains(&"busybox"));
+    assert!(names.contains(&"systemd"));
+    assert!(names.contains(&"imx-gpu-viv"));
+    assert!(names.contains(&"gcc-runtime-native"));
+    assert!(names.contains(&"cmake-native"));
+    assert!(names.contains(&"axios"));
+    assert!(names.contains(&"lodash"));
+}
+
+#[test]
+fn test_spdx30_purl_extraction() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let data = std::fs::read(fixtures.join("sample_spdx30.spdx.json")).unwrap();
+    let packages = parse_spdx_sbom(&data).unwrap();
+
+    // Packages with purls
+    let openssl = packages.iter().find(|p| p.name == "openssl").unwrap();
+    assert_eq!(openssl.version.as_deref(), Some("3.0.13"));
+    assert_eq!(openssl.purl.as_deref(), Some("pkg:generic/openssl@3.0.13"));
+
+    let axios = packages.iter().find(|p| p.name == "axios").unwrap();
+    assert_eq!(axios.version.as_deref(), Some("0.21.0"));
+    assert_eq!(axios.purl.as_deref(), Some("pkg:npm/axios@0.21.0"));
+
+    // Packages without purls
+    let busybox = packages.iter().find(|p| p.name == "busybox").unwrap();
+    assert!(busybox.purl.is_none());
+
+    let gpu = packages.iter().find(|p| p.name == "imx-gpu-viv").unwrap();
+    assert!(gpu.purl.is_none());
+}
+
+#[test]
+fn test_spdx30_native_detection() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let data = std::fs::read(fixtures.join("sample_spdx30.spdx.json")).unwrap();
+    let packages = parse_spdx_sbom(&data).unwrap();
+
+    let native: Vec<&str> = packages
+        .iter()
+        .filter(|p| is_native_package(&p.name))
+        .map(|p| p.name.as_str())
+        .collect();
+
+    assert_eq!(native.len(), 2);
+    assert!(native.contains(&"gcc-runtime-native"));
+    assert!(native.contains(&"cmake-native"));
+}
+
+#[test]
+fn test_spdx_version_detection_23() {
+    let json = r#"{
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "spdxVersion": "SPDX-2.3",
+        "packages": [{"SPDXID": "SPDXRef-1", "name": "test", "versionInfo": "1.0"}]
+    }"#;
+    let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+    assert_eq!(pkgs.len(), 1);
+    assert_eq!(pkgs[0].version.as_deref(), Some("1.0"));
+}
+
+#[test]
+fn test_spdx_version_detection_30() {
+    let json = r#"{
+        "type": "SpdxDocument",
+        "spdxId": "SPDXRef-DOCUMENT",
+        "specVersion": "3.0.1",
+        "element": [{"type": "Package", "spdxId": "SPDXRef-1", "name": "test", "packageVersion": "1.0"}]
+    }"#;
+    let pkgs = parse_spdx_sbom(json.as_bytes()).unwrap();
+    assert_eq!(pkgs.len(), 1);
+    assert_eq!(pkgs[0].version.as_deref(), Some("1.0"));
+}

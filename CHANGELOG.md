@@ -5,21 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-05-30
 
 ### Added
 
-- Watch mode with SQLite state tracking (`bitvex watch`)
-- Project status command (`bitvex status`)
-- bitvex-watch.toml multi-project configuration
-- File watcher with inotify + debouncing
-- New CVE detection by comparing with previous scan
-- CI workflow: caching, multi-OS matrix (Linux/macOS/Windows), doc tests
-- 12 new unit tests for EPSS, kernel config, DTS, SPDX, rules modules
+- **SPDX 3.0 support** — full parsing of SPDX 3.0 JSON-LD SBOMs
+- **SPDX version auto-detection** — automatically detects SPDX 2.2/2.3/3.0
+- **Watch mode** — `bitvex watch` for continuous vulnerability monitoring
+- **Project status** — `bitvex status` to view monitored projects
+- **SQLite state tracking** — CVE lifecycle tracking across builds
+- **bitvex-watch.toml** — multi-project configuration format
+- **File watcher** — inotify-based with debouncing (Linux)
+- **New CVE detection** — compares with previous scan in SQLite
+- CI workflow: multi-OS matrix (Linux/macOS/Windows), cargo caching, doc tests
+- 14 new unit tests + 5 new integration tests for SPDX 3.0
 
-### Fixed
+### Changed
 
-- Code formatting across all source files (cargo fmt)
+- SPDX parser split into `spdx2.rs` and `spdx3.rs` modules
+- Version bumped to 0.3.0
 
 ## [0.2.7] - 2026-05-30
 
@@ -37,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Version bumped to 0.2.7
-- README updated with all v0.2.6 and v0.2.7 features
+- README updated with all v0.2.6 and v0.2.7 features documented
 
 ## [0.2.6] - 2026-05-30
 
@@ -65,36 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Rules Engine** — Custom filtering rules via `bitvex.toml` file
-  - Match by CVE ID, glob pattern, package name, version
-  - Define custom status, justification, and impact statement
-  - Author override from rules file
-- **Offline Mode** — Scan without internet using local OSV database
-  - `--offline` flag to use local database
-  - `--download-db` command to download/update database
-  - Download profiles: `small` (29MB), `medium` (35MB), `big` (116MB), `complete` (822MB)
-  - Interactive confirmation with size estimation
-  - Progress bars during download
-  - `--yes` / `-y` flag to skip confirmation prompts
-- **SBOM Diff** — Compare two SBOMs and report changes
-  - `bitvex diff --old <path> --new <path>` subcommand
-  - Reports added, removed, and updated packages
-  - Optional JSON output
-- **Combined offline + download** — `--offline --download-db` in single command
-- 11 new integration tests with real iMX8MP fixtures
+- Rules engine with `bitvex.toml` custom filtering
+- Offline mode with downloadable OSV database
+- Download profiles: small (29MB), medium (35MB), big (116MB), complete (822MB)
+- SBOM diff: compare two builds
+- Progress bars during downloads
+- Interactive confirmation prompts
+- SSPL-1.0 license
 
-### Changed
-
-- Version bump to 2.5.0
-- CLI now uses subcommands (`diff`, `download-db`) for non-scan operations
-- OSV client refactored to support online/offline providers
-
-## [0.1.0] - 2024-06-15
+## [0.1.0] - 2026-05-30
 
 ### Added
 
-- Initial release by Manuel Neto Romero
-- SPDX JSON SBOM parsing
+- Initial release
+- SPDX JSON SBOM parsing (v2.2/v2.3)
 - OSV API batch query integration (async, 100 packages per request)
 - Native recipe filter (`-native` packages marked `not_affected`)
 - Kernel `.config` cross-reference filter
@@ -103,4 +91,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console summary with tabulated results
 - CLI interface with `clap` (6 configurable flags)
 - Full test suite (unit + integration with real iMX8MP fixtures)
-- SSPL-1.0 license

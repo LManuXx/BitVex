@@ -1,0 +1,134 @@
+{
+    "type": "SpdxDocument",
+    "spdxId": "SPDXRef-DOCUMENT",
+    "specVersion": "3.0.1",
+    "name": "imx8mp-evk-sbom",
+    "creationInfo": {
+        "created": "2024-06-15T10:30:00Z",
+        "createdUsing": [
+            {
+                "type": "Tool",
+                "spdxId": "SPDXRef-Tool-syft",
+                "name": "syft"
+            }
+        ],
+        "specVersion": "3.0.1"
+    },
+    "element": [
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-openssl",
+            "name": "openssl",
+            "packageVersion": "3.0.13",
+            "downloadLocation": "https://www.openssl.org/source/openssl-3.0.13.tar.gz",
+            "externalIdentifier": [
+                {
+                    "type": "purl",
+                    "identifier": "pkg:generic/openssl@3.0.13"
+                }
+            ]
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-curl",
+            "name": "curl",
+            "packageVersion": "8.5.0",
+            "downloadLocation": "https://curl.se/download/curl-8.5.0.tar.gz",
+            "externalIdentifier": [
+                {
+                    "type": "purl",
+                    "identifier": "pkg:generic/curl@8.5.0"
+                }
+            ]
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-glibc",
+            "name": "glibc",
+            "packageVersion": "2.37",
+            "downloadLocation": "https://ftp.gnu.org/gnu/glibc/glibc-2.37.tar.xz",
+            "externalIdentifier": [
+                {
+                    "type": "purl",
+                    "identifier": "pkg:generic/glibc@2.37"
+                }
+            ]
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-busybox",
+            "name": "busybox",
+            "packageVersion": "1.36.1"
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-systemd",
+            "name": "systemd",
+            "packageVersion": "253.4"
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-imx-gpu-viv",
+            "name": "imx-gpu-viv",
+            "packageVersion": "6.4.11.p4.6"
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-gcc-runtime-native",
+            "name": "gcc-runtime-native",
+            "packageVersion": "13.2.0"
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-cmake-native",
+            "name": "cmake-native",
+            "packageVersion": "3.27.1"
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-axios",
+            "name": "axios",
+            "packageVersion": "0.21.0",
+            "externalIdentifier": [
+                {
+                    "type": "purl",
+                    "identifier": "pkg:npm/axios@0.21.0"
+                }
+            ]
+        },
+        {
+            "type": "Package",
+            "spdxId": "SPDXRef-Package-lodash",
+            "name": "lodash",
+            "packageVersion": "4.17.15",
+            "externalIdentifier": [
+                {
+                    "type": "purl",
+                    "identifier": "pkg:npm/lodash@4.17.15"
+                }
+            ]
+        },
+        {
+            "type": "File",
+            "spdxId": "SPDXRef-File-test",
+            "name": "test.txt"
+        },
+        {
+            "type": "Relationship",
+            "spdxId": "SPDXRef-Rel-1",
+            "name": "DESCRIBES"
+        }
+    ],
+    "relationship": [
+        {
+            "spdxId": "SPDXRef-Relationship-1",
+            "type": "DESCRIBES",
+            "from": "SPDXRef-DOCUMENT",
+            "to": [
+                "SPDXRef-Package-openssl",
+                "SPDXRef-Package-curl",
+                "SPDXRef-Package-glibc"
+            ]
+        }
+    ]
+}

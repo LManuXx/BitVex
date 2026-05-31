@@ -10,7 +10,7 @@ Generate spec-compliant OpenVEX reports from Yocto builds by filtering CVEs agai
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen.svg)](#)
 [![OpenVEX](https://img.shields.io/badge/OpenVEX-v0.2.0-purple.svg)](https://openvex.dev/)
-[![SPDX](https://img.shields.io/badge/SPDX-2.3-blue.svg)](https://spdx.dev/)
+[![SPDX](https://img.shields.io/badge/SPDX-2.2%20%7C%202.3%20%7C%203.0-blue.svg)](https://spdx.dev/)
 [![EPSS](https://img.shields.io/badge/EPSS-Integrated-yellow.svg)](https://www.first.org/epss/)
 
 [Getting Started](#getting-started) ·
@@ -483,14 +483,19 @@ generate_vex_report() {
 ### Input Format Requirements
 
 <details>
-<summary><strong>SBOM (SPDX 2.2 / 2.3 JSON)</strong></summary>
+<summary><strong>SBOM (SPDX 2.2 / 2.3 / 3.0 JSON)</strong></summary>
 
-Produced by Yocto's `meta-spdxscanner` or tools like [syft](https://github.com/anchore/syft). Required fields per package:
+Produced by Yocto's `meta-spdxscanner` or tools like [syft](https://github.com/anchore/syft). BitVex auto-detects the SPDX version.
+
+**SPDX 2.2/2.3:**
 - `name` — package identifier
 - `versionInfo` — version string
 - `externalRefs` — optional `purl` (Package URL)
 
-SPDX 3.0 is detected with a warning (full support planned).
+**SPDX 3.0:**
+- `element[]` with `type: "Package"`
+- `packageVersion` — version string
+- `externalIdentifier[]` with `type: "purl"`
 
 </details>
 
@@ -568,7 +573,7 @@ src/
 
 ```bash
 cargo build              # Compile
-cargo test               # Run 59 tests (44 unit + 11 integration + 4 doctest)
+cargo test               # Run 91 tests (70 unit + 16 integration + 5 doctest)
 cargo clippy             # Lint (0 warnings)
 cargo fmt                # Format
 ```
